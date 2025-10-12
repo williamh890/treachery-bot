@@ -1,17 +1,15 @@
 import discord
-import urllib
-import requests
-import json
 from discord.ext import commands
 import pathlib
 
-DATA_PATH = pathlib.Path(__file__).parent / 'data'
+import treachery
+
 PLAYERS = []
 
 intents = discord.Intents.default()
 intents.message_content = True
 
-bot = commands.Bot(command_prefix='tre_', intents=intents)
+bot = commands.Bot(command_prefix='_', intents=intents)
 
 
 @bot.event
@@ -68,22 +66,28 @@ async def remove(ctx):
 
 def _players_status_msg(players):
     if not PLAYERS:
-        msg = 'No trech gamers :('
+        msg = 'No treach gamers :('
     else:
         names = ", ".join(player.name for player in PLAYERS)
-        msg = f"Trechery Gamers: {names}"
+        msg = f"Treachery Gamers: {names}"
 
     return msg
 
 
 @bot.command()
 async def deal(ctx):
+    global PLAYERS
+
     if not players:
         await ctx.send('Yo, you need players dude.')
         return
 
-    for player in players:
-        await player.send('ur playin')
+    player_roles = treachery.deal_role_cards([player.name for player in PLAYERS])
+    for player in PLAYERS:
+        role = player_roles[player.name]
+        image = treachery.card_image(role)
+
+        await player.send(image)
 
 
 @bot.command()
@@ -99,26 +103,6 @@ async def reset(ctx):
 def run():
     token = pathlib.Path('token.txt').read_text()
     bot.run(token)
-
-
-def load_trechery_cards():
-    with pathlib.Path('cards.json').open("r") as f:
-        cards = json.load(f)
-
-    for card in cards['cards']:
-        download_image(card)
-
-    return cards
-
-
-def download_image(card):
-    url_encoded = urllib.parse.quote(f'{card["id"]:03} - {card["types"]["subtype"]} - {card["name"]}.jpg')
-    url = f'https://mtgtreachery.net/images/cards/en/trd/{url_encoded}'
-    resp = requests.get(url)
-
-    with (DATA_PATH / 'card-images' / f"{card['name']}.jpg").open('wb') as f:
-        print(f'downloaded {card["name"]}')
-        f.write(resp.content)
 
 
 if __name__ == '__main__':
