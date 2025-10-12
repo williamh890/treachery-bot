@@ -5,6 +5,7 @@ import pathlib
 import treachery
 
 PLAYERS = []
+ROLE_DECK = treachery.RoleDeck()
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -35,7 +36,7 @@ async def add(ctx):
     new_players = ctx.message.mentions
 
     if not new_players:
-        return
+        new_players = [ctx.author]
 
     current_players = set(player.name for player in PLAYERS)
 
@@ -55,7 +56,7 @@ async def remove(ctx):
     players_to_remove = ctx.message.mentions
 
     if not players_to_remove:
-        return
+        players_to_remove = [ctx.author]
 
     to_remove = set(player.name for player in players_to_remove)
     PLAYERS = [p for p in PLAYERS if p.name not in to_remove]
@@ -76,28 +77,51 @@ def _players_status_msg(players):
 
 @bot.command()
 async def deal(ctx):
-    global PLAYERS
+    global PLAYERS, ROLE_DECK
 
     if not players:
         await ctx.send('Yo, you need players dude.')
         return
 
-    player_roles = treachery.deal_role_cards([player.name for player in PLAYERS])
+    player_roles = ROLE_DECK.deal([player.name for player in PLAYERS])
+
     for player in PLAYERS:
         role = player_roles[player.name]
         image = treachery.card_image(role)
 
         await player.send(image)
 
+    roles = [role['types']['subtype'] for role in player_roles.values()]
+    msg = f'Dealt out {len(roles)} roles: {", ".join(roles)}'
+
+    await ctx.send(msg)
+
 
 @bot.command()
 async def shuffle(ctx):
-    pass
+    global ROLE_DECK
+    ROLE_DECK.shuffle()
+
+    msg = 'Role deck has been reshuffled'
+    await ctx.send(msg)
+
+
+@bot.command()
+async def deck(ctx):
+    global ROLE_DECK
+
+    await ctx.send(str(ROLE_DECK))
 
 
 @bot.command()
 async def reset(ctx):
-    pass
+    global PLAYERS, ROLE_DECK
+
+    PLAYERS = []
+    ROLE_DECK = treachery.RoleDeck()
+
+    msg = 'Reset players and role deck'
+    await ctx.send(msg)
 
 
 def run():

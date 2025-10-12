@@ -1,46 +1,39 @@
 import requests
 import random
 import json
-from collections import defaultdict
+from collections import defaultdict, Counter
 import pathlib
 import urllib
 
 DATA_PATH = pathlib.Path(__file__).parent / 'data'
 
 
-def load_treachery_cards():
-    with pathlib.Path('cards.json').open("r") as f:
-        cards = json.load(f)
+class RoleDeck:
+    def __init__(self):
+        self.all_cards = load_treachery_cards()
+        self.cards_by_role = get_cards_by_role(self.all_cards)
 
-    return cards['cards']
+    def __str__(self):
+        return 'Current Role Deck: \n' + '\n'.join([f'  {name}: {len(roles)}' for name, roles in self.cards_by_role.items()])
 
+    def deal(self, players):
+        player_roles = _deal_roles(players)
+        player_role_cards = {}
 
-def get_cards_by_role(cards):
-    by_role = defaultdict(list)
+        for role, count in Counter(player_roles.values()).items():
+            if len(self.cards_by_role[role]) < count:
+                self.cards_by_role[role] = self._get_all_cards_for(role)
 
-    for card in cards:
-        by_role[card['types']['subtype']].append(card)
+        for player, role in player_roles.items():
+            player_role_cards[player] = self.cards_by_role[role].pop()
 
-    return by_role
+        return player_role_cards
 
+    def shuffle(self):
+        self.cards_by_role = get_cards_by_role(self.all_cards)
 
-ALL_CARDS = load_treachery_cards()
-CARDS_BY_ROLE = get_cards_by_role(ALL_CARDS)
-
-
-def card_image(card):
-    url_encoded = urllib.parse.quote(f'{card["id"]:03} - {card["types"]["subtype"]} - {card["name"]}.jpg')
-    url = f'https://mtgtreachery.net/images/cards/en/trd/{url_encoded}'
-
-    return url
-
-
-def download_image(card, url):
-    resp = requests.get(url)
-
-    with (DATA_PATH / 'card-images' / f"{card['name']}.jpg").open('wb') as f:
-        print(f'downloaded {card["name"]}')
-        f.write(resp.content)
+    def _get_all_cards_for(self, role):
+        return [card for card in self.all_cards if card['types']['subtype'] == role]
 
 
 def _deal_roles(players):
@@ -65,12 +58,35 @@ def _deal_roles(players):
     return {player: role for player, role in zip(players, roles)}
 
 
-def deal_role_cards(players):
-    player_roles = _deal_roles(players)
+def load_treachery_cards():
+    with pathlib.Path('cards.json').open("r") as f:
+        cards = json.load(f)
 
-    player_role_cards = {}
+    return cards['cards']
 
-    for player, role in player_roles.items():
-        player_role_cards[player] = random.choice(CARDS_BY_ROLE[role])
 
-    return player_role_cards
+def get_cards_by_role(cards):
+    by_role = defaultdict(list)
+
+    for card in cards:
+        by_role[card['types']['subtype']].append(card)
+
+    for role in by_role:
+        random.shuffle(by_role[role])
+
+    return by_role
+
+
+def card_image(card):
+    url_encoded = urllib.parse.quote(f'{card["id"]:03} - {card["types"]["subtype"]} - {card["name"]}.jpg')
+    url = f'https://mtgtreachery.net/images/cards/en/trd/{url_encoded}'
+
+    return url
+
+
+def download_image(card, url):
+    resp = requests.get(url)
+
+    with (DATA_PATH / 'card-images' / f"{card['name']}.jpg").open('wb') as f:
+        print(f'downloaded {card["name"]}')
+        f.write(resp.content)
