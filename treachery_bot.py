@@ -4,8 +4,49 @@ import pathlib
 
 import treachery
 
-PLAYERS = []
-ROLE_DECK = treachery.RoleDeck()
+
+class TreacheryGameState:
+    def __init__(self):
+        self.players = []
+        self.role_deck = treachery.RoleDeck()
+        self.current_roles = None
+
+    def set_players(self, players):
+        self.players = players
+
+    def add_players(self, new_players):
+        current_players = set(player.name for player in self.players)
+
+        for new_player in new_players:
+            if new_player.name in current_players:
+                continue
+
+            self.players.append(new_player)
+
+    def remove_players(self, players_to_remove):
+        to_remove = set(player.name for player in players_to_remove)
+        self.players = [p for p in self.players if p.name not in to_remove]
+
+    def deal(self):
+        self.current_roles = self.deal([player.name for player in self.players])
+
+        return self.current_roles
+
+    def shuffle(self):
+        self.role_deck.shuffle()
+
+    @property
+    def players_status_msg(self):
+        if not self.players:
+            msg = 'No treach gamers :('
+        else:
+            names = ", ".join(player.name for player in self.players)
+            msg = f"Treachery Gamers: {names}"
+
+        return msg
+
+
+STATE = TreacheryGameState()
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -20,72 +61,55 @@ async def on_ready():
 
 @bot.command()
 async def players(ctx):
-    global PLAYERS
+    global STATE
     new_players = ctx.message.mentions
 
     if new_players:
-        PLAYERS = new_players
+        STATE.set_players(new_players)
 
-    msg = _players_status_msg(PLAYERS)
+    msg = STATE.players_status_msg
     await ctx.send(msg)
 
 
 @bot.command()
 async def add(ctx):
-    global PLAYERS
+    global STATE
     new_players = ctx.message.mentions
 
     if not new_players:
         new_players = [ctx.author]
 
-    current_players = set(player.name for player in PLAYERS)
+    STATE.add_players(new_players)
 
-    for new_player in new_players:
-        if new_player.name in current_players:
-            continue
-
-        PLAYERS.append(new_player)
-
-    msg = _players_status_msg(PLAYERS)
+    msg = STATE.players_status_msg
     await ctx.send(msg)
 
 
 @bot.command()
 async def remove(ctx):
-    global PLAYERS
+    global STATE
     players_to_remove = ctx.message.mentions
 
     if not players_to_remove:
         players_to_remove = [ctx.author]
 
-    to_remove = set(player.name for player in players_to_remove)
-    PLAYERS = [p for p in PLAYERS if p.name not in to_remove]
+    STATE.remove_players(players_to_remove)
 
-    msg = _players_status_msg(PLAYERS)
+    msg = STATE.players_status_msg
     await ctx.send(msg)
-
-
-def _players_status_msg(players):
-    if not PLAYERS:
-        msg = 'No treach gamers :('
-    else:
-        names = ", ".join(player.name for player in PLAYERS)
-        msg = f"Treachery Gamers: {names}"
-
-    return msg
 
 
 @bot.command()
 async def deal(ctx):
-    global PLAYERS, ROLE_DECK
+    global STATE
 
-    if not players:
+    if not STATE.players:
         await ctx.send('Yo, you need players dude.')
         return
 
-    player_roles = ROLE_DECK.deal([player.name for player in PLAYERS])
+    player_roles = STATE.deal()
 
-    for player in PLAYERS:
+    for player in STATE.players:
         role = player_roles[player.name]
         image = treachery.card_image(role)
 
@@ -99,8 +123,8 @@ async def deal(ctx):
 
 @bot.command()
 async def shuffle(ctx):
-    global ROLE_DECK
-    ROLE_DECK.shuffle()
+    global STATE
+    STATE.shuffle()
 
     msg = 'Role deck has been reshuffled'
     await ctx.send(msg)
@@ -108,17 +132,15 @@ async def shuffle(ctx):
 
 @bot.command()
 async def deck(ctx):
-    global ROLE_DECK
-
-    await ctx.send(str(ROLE_DECK))
+    global STATE
+    await ctx.send(str(STATE.role_deck))
 
 
 @bot.command()
 async def reset(ctx):
-    global PLAYERS, ROLE_DECK
+    global STATE
 
-    PLAYERS = []
-    ROLE_DECK = treachery.RoleDeck()
+    STATE = TreacheryGameState()
 
     msg = 'Reset players and role deck'
     await ctx.send(msg)
