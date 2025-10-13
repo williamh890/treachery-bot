@@ -136,9 +136,20 @@ async def masks(ctx):
         return
 
     cards = STATE.wearer_of_masks(x)
-    urls = '\n'.join(treachery.card_image(card) for card in cards)
 
-    await ctx.send(f'{urls}\n')
+    url_msg = ''
+    for card in cards:
+        url = treachery.card_image(card)
+
+        if len(url_msg) + len(url) + 1 >= 2000:
+            await ctx.send(f'{url_msg}')
+            url_msg = ''
+
+        url_msg += f'{url}\n'
+
+    if len(cards) > 25:
+        await ctx.send('Too many cards to use buttons.')
+        return
 
     view = WearerOfMasksView(cards, ctx.author)
     await ctx.send('Pick a non-leader card to copy:', view=view)
