@@ -55,3 +55,15 @@ def test_shuffle():
     assert len(role_deck.cards_by_role['Leader']) == 13
     assert len(role_deck.cards_by_role['Guardian']) == 18
     assert len(role_deck.cards_by_role['Traitor']) == 13
+
+
+def test_wearer_of_masks():
+    cards = treachery.RoleDeck()
+
+    assert len(treachery.wearer_of_masks(cards, 0)) == 0
+    assert len(treachery.wearer_of_masks(cards, 1)) == 1
+    assert len(treachery.wearer_of_masks(cards, 100)) == 18 + 18 + 12
+
+
+def test_puppet_master():
+    cards = treachery.RoleDeck()

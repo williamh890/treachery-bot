@@ -58,6 +58,24 @@ def _deal_roles(players):
     return {player: role for player, role in zip(players, roles)}
 
 
+def puppet_master(player_roles, message):
+    print(player_roles, message)
+
+    return {}
+
+
+def wearer_of_masks(role_deck, x):
+    def is_maskable_card(card):
+        return card['types']['subtype'] != 'Leader' and card['name'] != 'The Wearer of Masks'
+
+    non_leader_cards = [card for card in role_deck.all_cards if is_maskable_card(card)]
+
+    if x > len(non_leader_cards):
+        x = len(non_leader_cards)
+
+    return random.sample(non_leader_cards, x)
+
+
 def load_treachery_cards():
     with pathlib.Path('cards.json').open("r") as f:
         cards = json.load(f)

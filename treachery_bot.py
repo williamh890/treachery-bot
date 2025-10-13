@@ -3,50 +3,10 @@ from discord.ext import commands
 import pathlib
 
 import treachery
+import game_state
 
 
-class TreacheryGameState:
-    def __init__(self):
-        self.players = []
-        self.role_deck = treachery.RoleDeck()
-        self.current_roles = None
-
-    def set_players(self, players):
-        self.players = players
-
-    def add_players(self, new_players):
-        current_players = set(player.name for player in self.players)
-
-        for new_player in new_players:
-            if new_player.name in current_players:
-                continue
-
-            self.players.append(new_player)
-
-    def remove_players(self, players_to_remove):
-        to_remove = set(player.name for player in players_to_remove)
-        self.players = [p for p in self.players if p.name not in to_remove]
-
-    def deal(self):
-        self.current_roles = self.deal([player.name for player in self.players])
-
-        return self.current_roles
-
-    def shuffle(self):
-        self.role_deck.shuffle()
-
-    @property
-    def players_status_msg(self):
-        if not self.players:
-            msg = 'No treach gamers :('
-        else:
-            names = ", ".join(player.name for player in self.players)
-            msg = f"Treachery Gamers: {names}"
-
-        return msg
-
-
-STATE = TreacheryGameState()
+STATE = game_state.TreacheryGameState()
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -56,7 +16,7 @@ bot = commands.Bot(command_prefix='_', intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f'bot online: {bot.user.name}')
+    print(f'Bot online: {bot.user.name}')
 
 
 @bot.command()
@@ -65,9 +25,10 @@ async def players(ctx):
     new_players = ctx.message.mentions
 
     if new_players:
-        STATE.set_players(new_players)
+        msg = STATE.set_players(new_players)
+    else:
+        msg = STATE.players_status_msg
 
-    msg = STATE.players_status_msg
     await ctx.send(msg)
 
 
@@ -79,9 +40,8 @@ async def add(ctx):
     if not new_players:
         new_players = [ctx.author]
 
-    STATE.add_players(new_players)
+    msg = STATE.add_players(new_players)
 
-    msg = STATE.players_status_msg
     await ctx.send(msg)
 
 
@@ -93,9 +53,8 @@ async def remove(ctx):
     if not players_to_remove:
         players_to_remove = [ctx.author]
 
-    STATE.remove_players(players_to_remove)
+    msg = STATE.remove_players(players_to_remove)
 
-    msg = STATE.players_status_msg
     await ctx.send(msg)
 
 
@@ -107,26 +66,20 @@ async def deal(ctx):
         await ctx.send('Yo, you need players dude.')
         return
 
-    player_roles = STATE.deal()
+    player_msgs, game_msg = STATE.deal()
 
     for player in STATE.players:
-        role = player_roles[player.name]
-        image = treachery.card_image(role)
+        player_msg = player_msgs[player.name]
+        await player.send(player_msg)
 
-        await player.send(image)
-
-    roles = [role['types']['subtype'] for role in player_roles.values()]
-    msg = f'Dealt out {len(roles)} roles: {", ".join(roles)}'
-
-    await ctx.send(msg)
+    await ctx.send(game_msg)
 
 
 @bot.command()
 async def shuffle(ctx):
     global STATE
-    STATE.shuffle()
+    msg = STATE.shuffle()
 
-    msg = 'Role deck has been reshuffled'
     await ctx.send(msg)
 
 
@@ -136,11 +89,86 @@ async def deck(ctx):
     await ctx.send(str(STATE.role_deck))
 
 
+class WearerOfMasksView(discord.ui.View):
+    def __init__(self, cards, author: discord.User):
+        super().__init__()  # stop after 30s if no click
+        self.value = None  # store chosen option
+        self.author = author
+
+        for card in cards:
+            style = {
+                'Traitor': discord.ButtonStyle.grey,
+                'Assassin': discord.ButtonStyle.red,
+                'Guardian': discord.ButtonStyle.primary
+            }[card['types']['subtype']]
+
+            button = discord.ui.Button(label=card['name'], style=style)
+            button.callback = self.make_callback(button)
+            self.add_item(button)
+
+    def make_callback(self, button):
+        async def callback(interaction: discord.Interaction):
+            if interaction.user != self.author:
+                await interaction.response.send_message("Not your buttons!", ephemeral=True)
+                return
+
+            self.value = button.label
+
+            for btn in self.children:
+                btn.disabled = True
+            await interaction.message.edit(view=self)
+
+            await interaction.response.send_message(f"You picked **{button.label}**!", ephemeral=True)
+            self.stop()
+
+        return callback
+
+
+@bot.command()
+async def masks(ctx):
+    global STATE
+
+    command_msg = ctx.message.content.strip('_masks')
+    try:
+        x = int(command_msg)
+    except ValueError:
+        await ctx.send('No value for X found in command.')
+        return
+
+    cards = STATE.wearer_of_masks(x)
+    urls = '\n'.join(treachery.card_image(card) for card in cards)
+
+    await ctx.send(f'{urls}\n')
+
+    view = WearerOfMasksView(cards, ctx.author)
+    await ctx.send('Pick a non-leader card to copy:', view=view)
+
+    await view.wait()
+
+
+@bot.command()
+async def puppet(ctx):
+    global STATE
+    msg_command = ctx.message.content.strip('_puppet')
+
+    if not msg_command:
+        player_roles_msg = STATE.player_roles_msg(ctx.author.name)
+
+        await ctx.author.send(player_roles_msg)
+        return
+
+    new_role_msgs = STATE.puppet_master(msg_command)
+
+    for player in STATE.players:
+        player_msg = new_role_msgs[player.name]
+        await player.send(player_msg)
+
+
 @bot.command()
 async def reset(ctx):
     global STATE
 
-    STATE = TreacheryGameState()
+    STATE = game_state.TreacheryGameState()
 
     msg = 'Reset players and role deck'
     await ctx.send(msg)
