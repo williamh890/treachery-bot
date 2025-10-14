@@ -19,7 +19,7 @@ async def on_ready():
     print(f'Bot online: {bot.user.name}')
 
 
-@bot.command()
+@bot.command(help='Set players or list all players')
 async def players(ctx):
     global STATE
     new_players = ctx.message.mentions
@@ -32,7 +32,7 @@ async def players(ctx):
     await ctx.send(msg)
 
 
-@bot.command()
+@bot.command(help='Add player(s) to the game')
 async def add(ctx):
     global STATE
     new_players = ctx.message.mentions
@@ -45,7 +45,7 @@ async def add(ctx):
     await ctx.send(msg)
 
 
-@bot.command()
+@bot.command(help='Remove player(s) from the game')
 async def remove(ctx):
     global STATE
     players_to_remove = ctx.message.mentions
@@ -58,7 +58,7 @@ async def remove(ctx):
     await ctx.send(msg)
 
 
-@bot.command()
+@bot.command(help='Deal out role cards to current players')
 async def deal(ctx):
     global STATE
 
@@ -75,7 +75,7 @@ async def deal(ctx):
     await ctx.send(game_msg)
 
 
-@bot.command()
+@bot.command(help="Shuffle the role deck")
 async def shuffle(ctx):
     global STATE
     msg = STATE.shuffle()
@@ -83,7 +83,7 @@ async def shuffle(ctx):
     await ctx.send(msg)
 
 
-@bot.command()
+@bot.command(help="Return the state of the role deck")
 async def deck(ctx):
     global STATE
     await ctx.send(str(STATE.role_deck))
@@ -124,7 +124,7 @@ class WearerOfMasksView(discord.ui.View):
         return callback
 
 
-@bot.command()
+@bot.command(help='WIP: The Wearer of Masks card')
 async def masks(ctx):
     global STATE
 
@@ -157,7 +157,7 @@ async def masks(ctx):
     await view.wait()
 
 
-@bot.command()
+@bot.command(help="WIP: Puppet Master card")
 async def puppet(ctx):
     global STATE
     msg_command = ctx.message.content.strip('_puppet')
@@ -175,7 +175,7 @@ async def puppet(ctx):
         await player.send(player_msg)
 
 
-@bot.command()
+@bot.command(help="Reset treachery game state")
 async def reset(ctx):
     global STATE
 

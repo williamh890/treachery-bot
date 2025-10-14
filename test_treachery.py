@@ -7,12 +7,19 @@ def test_loading_cards():
     assert set(role_deck.cards_by_role.keys()) == {'Guardian', 'Traitor', 'Assassin', 'Leader'}
 
 
-def test__get_roles():
+def test_deal_roles():
     players = {'p1', 'p2', 'p3', 'p4'}
     roles = treachery._deal_roles(players)
 
     assert roles.keys() == players
     assert set(roles.values()) == {'Traitor', 'Assassin', 'Leader'}
+
+    for num_players in range(1, 9):
+        players = {f'p{player_num + 1}' for player_num in range(num_players)}
+        roles = treachery._deal_roles(players)
+
+        assert roles.keys() == players
+        assert len(roles.values()) == len(players)
 
 
 def test_get_role_cards():

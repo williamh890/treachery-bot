@@ -14,7 +14,7 @@ class RoleDeck:
         self.cards_by_role = get_cards_by_role(self.all_cards)
 
     def __str__(self):
-        return 'Current Role Deck: \n' + '\n'.join([f'  {name}: {len(roles)}' for name, roles in self.cards_by_role.items()])
+        return 'Current Role Deck: \n' + '\n'.join([f'    {name}: {len(roles)}' for name, roles in self.cards_by_role.items()])
 
     def deal(self, players):
         player_roles = _deal_roles(players)
@@ -42,7 +42,9 @@ def _deal_roles(players):
 
     if num_players == 1:
         roles = [random.choice(['Traitor', 'Assassin', 'Assassin', 'Leader'])]
-    if num_players == 4:
+    elif num_players < 4:
+        roles = [random.choice(['Traitor', 'Assassin', 'Assassin']) for _ in range(num_players - 1)] + ['Leader']
+    elif num_players == 4:
         roles = ['Traitor', 'Assassin', 'Assassin', 'Leader']
     elif num_players == 5:
         roles = ['Guardian', 'Traitor', 'Assassin', 'Assassin', 'Leader']
