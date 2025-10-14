@@ -1,4 +1,5 @@
 import discord
+import asyncio
 from discord.ext import commands
 import pathlib
 
@@ -6,104 +7,28 @@ import treachery
 import game_state
 
 
-STATE = game_state.TreacheryGameState()
-
 intents = discord.Intents.default()
 intents.message_content = True
-
-bot = commands.Bot(command_prefix='_', intents=intents)
-
-
-@bot.event
-async def on_ready():
-    print(f'Bot online: {bot.user.name}')
-
-
-@bot.command(help='Set players or list all players')
-async def players(ctx):
-    global STATE
-    new_players = ctx.message.mentions
-
-    if new_players:
-        msg = STATE.set_players(new_players)
-    else:
-        msg = STATE.players_status_msg
-
-    await ctx.send(msg)
-
-
-@bot.command(help='Add player(s) to the game')
-async def add(ctx):
-    global STATE
-    new_players = ctx.message.mentions
-
-    if not new_players:
-        new_players = [ctx.author]
-
-    msg = STATE.add_players(new_players)
-
-    await ctx.send(msg)
-
-
-@bot.command(help='Remove player(s) from the game')
-async def remove(ctx):
-    global STATE
-    players_to_remove = ctx.message.mentions
-
-    if not players_to_remove:
-        players_to_remove = [ctx.author]
-
-    msg = STATE.remove_players(players_to_remove)
-
-    await ctx.send(msg)
-
-
-@bot.command(help='Deal out role cards to current players')
-async def deal(ctx):
-    global STATE
-
-    if not STATE.players:
-        await ctx.send('Yo, you need players dude.')
-        return
-
-    player_msgs, game_msg = STATE.deal()
-
-    for player in STATE.players:
-        player_msg = player_msgs[player.name]
-        await player.send(player_msg)
-
-    await ctx.send(game_msg)
-
-
-@bot.command(help="Shuffle the role deck")
-async def shuffle(ctx):
-    global STATE
-    msg = STATE.shuffle()
-
-    await ctx.send(msg)
-
-
-@bot.command(help="Return the state of the role deck")
-async def deck(ctx):
-    global STATE
-    await ctx.send(str(STATE.role_deck))
+bot = commands.Bot(command_prefix="_", intents=intents)
 
 
 class WearerOfMasksView(discord.ui.View):
     def __init__(self, cards, author: discord.User):
-        super().__init__()  # stop after 30s if no click
-        self.value = None  # store chosen option
+        super().__init__(timeout=None)
+        self.value = None
         self.author = author
 
         for card in cards:
+            role = card["types"]["subtype"]
             style = {
-                'Traitor': discord.ButtonStyle.grey,
-                'Assassin': discord.ButtonStyle.red,
-                'Guardian': discord.ButtonStyle.primary
-            }[card['types']['subtype']]
+                "Traitor": discord.ButtonStyle.grey,
+                "Assassin": discord.ButtonStyle.red,
+                "Guardian": discord.ButtonStyle.primary,
+            }[role]
 
-            button = discord.ui.Button(label=card['name'], style=style)
+            button = discord.ui.Button(label=card["name"], style=style)
             button.callback = self.make_callback(button)
+
             self.add_item(button)
 
     def make_callback(self, button):
@@ -116,79 +41,126 @@ class WearerOfMasksView(discord.ui.View):
 
             for btn in self.children:
                 btn.disabled = True
-            await interaction.message.edit(view=self)
 
+            await interaction.message.edit(view=self)
             await interaction.response.send_message(f"You picked **{button.label}**!", ephemeral=True)
             self.stop()
 
         return callback
 
 
-@bot.command(help='WIP: The Wearer of Masks card')
-async def masks(ctx):
-    global STATE
+class TreacheryCog(commands.Cog, name="Treachery"):
+    """Game commands for Treachery"""
 
-    command_msg = ctx.message.content.strip('_masks')
-    try:
-        x = int(command_msg)
-    except ValueError:
-        await ctx.send('No value for X found in command.')
-        return
+    def __init__(self, bot):
+        self.bot = bot
+        self.state = game_state.TreacheryGameState()
 
-    cards = STATE.wearer_of_masks(x)
+    @commands.command(help="Set players or list all players")
+    async def players(self, ctx):
+        new_players = ctx.message.mentions
 
-    url_msg = ''
-    for card in cards:
-        url = treachery.card_image(card)
+        if new_players:
+            msg = self.state.set_players(new_players)
+        else:
+            msg = self.state.players_status_msg
 
-        if len(url_msg) + len(url) + 1 >= 2000:
-            await ctx.send(f'{url_msg}')
-            url_msg = ''
+        await ctx.send(msg)
 
-        url_msg += f'{url}\n'
+    @commands.command(help="Add player(s) to the game")
+    async def add(self, ctx):
+        new_players = ctx.message.mentions or [ctx.author]
+        msg = self.state.add_players(new_players)
 
-    if len(cards) > 25:
-        await ctx.send('Too many cards to use buttons.')
-        return
+        await ctx.send(msg)
 
-    view = WearerOfMasksView(cards, ctx.author)
-    await ctx.send('Pick a non-leader card to copy:', view=view)
+    @commands.command(help="Remove player(s) from the game")
+    async def remove(self, ctx):
+        players_to_remove = ctx.message.mentions or [ctx.author]
+        msg = self.state.remove_players(players_to_remove)
 
-    await view.wait()
+        await ctx.send(msg)
+
+    @commands.command(help="Deal out role cards to current players")
+    async def deal(self, ctx):
+        if not self.state.players:
+            await ctx.send("Yo, you need players dude.")
+            return
+
+        player_msgs, game_msg = self.state.deal()
+
+        for player in self.state.players:
+            await player.send(player_msgs[player.name])
+
+        await ctx.send(game_msg)
+
+    @commands.command(help="Shuffle the role deck")
+    async def shuffle(self, ctx):
+        msg = self.state.shuffle()
+        await ctx.send(msg)
+
+    @commands.command(help="Return the state of the role deck")
+    async def deck(self, ctx):
+        msg = str(self.state.role_deck)
+        await ctx.send(msg)
+
+    @commands.command(help="The Wearer of Masks card")
+    async def masks(self, ctx, x: int = None):
+        if x is None:
+            await ctx.send("You need to specify a number for X.")
+            return
+
+        cards = self.state.wearer_of_masks(x)
+        url_msg = ""
+
+        for card in cards:
+            url = treachery.card_image(card)
+            if len(url_msg) + len(url) + 1 >= 2000:
+                await ctx.send(url_msg)
+                url_msg = ""
+            url_msg += f"{url}\n"
+
+        if url_msg:
+            await ctx.send(url_msg)
+
+        if len(cards) > 25:
+            await ctx.send("Too many cards to use buttons.")
+            return
+
+        view = WearerOfMasksView(cards, ctx.author)
+        await ctx.send("Pick a non-leader card to copy:", view=view)
+        await view.wait()
+
+    @commands.command(help="The Puppet Master card")
+    async def puppet(self, ctx, *, arg: str = None):
+        if not arg:
+            player_roles_msg = self.state.player_roles_msg(ctx.author.name)
+            await ctx.author.send(player_roles_msg)
+            return
+
+        new_role_msgs = self.state.puppet_master(arg)
+        for player in self.state.players:
+            await player.send(new_role_msgs[player.name])
+
+    @commands.command(help="Reset treachery game state")
+    async def reset(self, ctx):
+        self.state = game_state.TreacheryGameState()
+        await ctx.send("Reset players and role deck")
 
 
-@bot.command(help="WIP: Puppet Master card")
-async def puppet(ctx):
-    global STATE
-    msg_command = ctx.message.content.strip('_puppet')
-
-    if not msg_command:
-        player_roles_msg = STATE.player_roles_msg(ctx.author.name)
-
-        await ctx.author.send(player_roles_msg)
-        return
-
-    new_role_msgs = STATE.puppet_master(msg_command)
-
-    for player in STATE.players:
-        player_msg = new_role_msgs[player.name]
-        await player.send(player_msg)
-
-
-@bot.command(help="Reset treachery game state")
-async def reset(ctx):
-    global STATE
-
-    STATE = game_state.TreacheryGameState()
-
-    msg = 'Reset players and role deck'
-    await ctx.send(msg)
+@bot.event
+async def on_ready():
+    print(f"✅ Bot online: {bot.user.name}")
 
 
 def run():
-    token = pathlib.Path('token.txt').read_text()
-    bot.run(token)
+    async def main():
+        await bot.add_cog(TreacheryCog(bot))
+        token = pathlib.Path("token.txt").read_text().strip()
+        await bot.start(token)
+
+    asyncio.run(main())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run()
