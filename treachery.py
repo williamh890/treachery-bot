@@ -14,7 +14,9 @@ class RoleDeck:
         self.cards_by_role = get_cards_by_role(self.all_cards)
 
     def __str__(self):
-        return 'Current Role Deck: \n' + '\n'.join([f'    {name}: {len(roles)}' for name, roles in self.cards_by_role.items()])
+        return 'Current Role Deck: \n' + '\n'.join(
+            [f'    {name}: {len(roles)}' for name, roles in self.cards_by_role.items()]
+        )
 
     def deal(self, players):
         player_roles = _deal_roles(players)
@@ -36,7 +38,7 @@ class RoleDeck:
         return [card for card in self.all_cards if card['types']['subtype'] == role]
 
 
-def _deal_roles(players):
+def _deal_roles(players, spice_pct=0.02):
     num_players = len(players)
     # assert num_players > 3 and num_players < 9, f"Can't play treachery with {num_players} players"
 
@@ -51,13 +53,40 @@ def _deal_roles(players):
     elif num_players == 6:
         roles = ['Guardian', 'Traitor', 'Assassin', 'Assassin', 'Assassin', 'Leader']
     elif num_players == 7:
-        roles = ['Guardian', 'Guardian', 'Traitor', 'Assassin', 'Assassin', 'Assassin', 'Leader']
+        roles = [
+            'Guardian',
+            'Guardian',
+            'Traitor',
+            'Assassin',
+            'Assassin',
+            'Assassin',
+            'Leader',
+        ]
     elif num_players == 8:
-        roles = ['Guardian', 'Guardian', 'Traitor', 'Traitor', 'Assassin', 'Assassin', 'Assassin', 'Leader']
+        roles = [
+            'Guardian',
+            'Guardian',
+            'Traitor',
+            'Traitor',
+            'Assassin',
+            'Assassin',
+            'Assassin',
+            'Leader',
+        ]
+
+    if random.random() < spice_pct:
+        roles = _add_all_traitor_spice(roles)
 
     random.shuffle(roles)
 
     return {player: role for player, role in zip(players, roles)}
+
+
+def _add_all_traitor_spice(roles):
+    if 'Leader' not in roles:
+        return ['Traitor']
+
+    return ['Traitor'] * (len(roles) - 1) + ['Leader']
 
 
 def puppet_master(player_roles, message):
@@ -79,7 +108,7 @@ def wearer_of_masks(role_deck, x):
 
 
 def load_treachery_cards():
-    with pathlib.Path('cards.json').open("r") as f:
+    with pathlib.Path('cards.json').open('r') as f:
         cards = json.load(f)
 
     return cards['cards']
@@ -107,6 +136,6 @@ def card_image(card):
 def download_image(card, url):
     resp = requests.get(url)
 
-    with (DATA_PATH / 'card-images' / f"{card['name']}.jpg").open('wb') as f:
+    with (DATA_PATH / 'card-images' / f'{card["name"]}.jpg').open('wb') as f:
         print(f'downloaded {card["name"]}')
         f.write(resp.content)

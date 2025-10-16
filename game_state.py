@@ -64,8 +64,8 @@ class TreacheryGameState:
         if not self.players:
             msg = 'No treach gamers :('
         else:
-            names = ", ".join(player.name for player in self.players)
-            msg = f"Treachery Gamers: {names}"
+            names = ', '.join(player.name for player in self.players)
+            msg = f'Treachery Gamers: {names}'
 
         return msg
 

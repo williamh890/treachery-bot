@@ -4,19 +4,24 @@ import treachery
 def test_loading_cards():
     role_deck = treachery.RoleDeck()
     assert role_deck.all_cards
-    assert set(role_deck.cards_by_role.keys()) == {'Guardian', 'Traitor', 'Assassin', 'Leader'}
+    assert set(role_deck.cards_by_role.keys()) == {
+        'Guardian',
+        'Traitor',
+        'Assassin',
+        'Leader',
+    }
 
 
 def test_deal_roles():
     players = {'p1', 'p2', 'p3', 'p4'}
-    roles = treachery._deal_roles(players)
+    roles = treachery._deal_roles(players, spice_pct=0)
 
     assert roles.keys() == players
     assert set(roles.values()) == {'Traitor', 'Assassin', 'Leader'}
 
     for num_players in range(1, 9):
         players = {f'p{player_num + 1}' for player_num in range(num_players)}
-        roles = treachery._deal_roles(players)
+        roles = treachery._deal_roles(players, spice_pct=0)
 
         assert roles.keys() == players
         assert len(roles.values()) == len(players)
@@ -27,7 +32,11 @@ def test_get_role_cards():
     role_cards = treachery.RoleDeck().deal(players)
 
     assert role_cards.keys() == players
-    assert set(card['types']['subtype'] for card in role_cards.values()) == {'Traitor', 'Assassin', 'Leader'}
+    assert set(card['types']['subtype'] for card in role_cards.values()) == {
+        'Traitor',
+        'Assassin',
+        'Leader',
+    }
 
 
 def test_multiple_deals():
@@ -74,3 +83,29 @@ def test_wearer_of_masks():
 
 def test_puppet_master():
     cards = treachery.RoleDeck()
+    assert cards
+
+
+def test_all_traitor_spice():
+    assert treachery._add_all_traitor_spice(['Assassin']) == ['Traitor']
+    assert treachery._add_all_traitor_spice(
+        [
+            'Guardian',
+            'Guardian',
+            'Traitor',
+            'Assassin',
+            'Assassin',
+            'Assassin',
+            'Leader',
+        ]
+    ) == ['Traitor', 'Traitor', 'Traitor', 'Traitor', 'Traitor', 'Traitor', 'Leader']
+
+    assert treachery._add_all_traitor_spice(
+        [
+            'Guardian',
+            'Traitor',
+            'Assassin',
+            'Assassin',
+            'Leader',
+        ]
+    ) == ['Traitor', 'Traitor', 'Traitor', 'Traitor', 'Leader']

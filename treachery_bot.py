@@ -9,7 +9,7 @@ import game_state
 
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix="_", intents=intents)
+bot = commands.Bot(command_prefix='_', intents=intents)
 
 
 class WearerOfMasksView(discord.ui.View):
@@ -19,14 +19,14 @@ class WearerOfMasksView(discord.ui.View):
         self.author = author
 
         for card in cards:
-            role = card["types"]["subtype"]
+            role = card['types']['subtype']
             style = {
-                "Traitor": discord.ButtonStyle.grey,
-                "Assassin": discord.ButtonStyle.red,
-                "Guardian": discord.ButtonStyle.primary,
+                'Traitor': discord.ButtonStyle.grey,
+                'Assassin': discord.ButtonStyle.red,
+                'Guardian': discord.ButtonStyle.primary,
             }[role]
 
-            button = discord.ui.Button(label=card["name"], style=style)
+            button = discord.ui.Button(label=card['name'], style=style)
             button.callback = self.make_callback(button)
 
             self.add_item(button)
@@ -34,7 +34,7 @@ class WearerOfMasksView(discord.ui.View):
     def make_callback(self, button):
         async def callback(interaction: discord.Interaction):
             if interaction.user != self.author:
-                await interaction.response.send_message("Not your buttons!", ephemeral=True)
+                await interaction.response.send_message('Not your buttons!', ephemeral=True)
                 return
 
             self.value = button.label
@@ -43,20 +43,20 @@ class WearerOfMasksView(discord.ui.View):
                 btn.disabled = True
 
             await interaction.message.edit(view=self)
-            await interaction.response.send_message(f"You picked **{button.label}**!", ephemeral=True)
+            await interaction.response.send_message(f'You picked **{button.label}**!', ephemeral=True)
             self.stop()
 
         return callback
 
 
-class TreacheryCog(commands.Cog, name="Treachery"):
+class TreacheryCog(commands.Cog, name='Treachery'):
     """Game commands for Treachery"""
 
     def __init__(self, bot):
         self.bot = bot
         self.state = game_state.TreacheryGameState()
 
-    @commands.command(help="Set players or list all players")
+    @commands.command(help='Set players or list all players')
     async def players(self, ctx):
         new_players = ctx.message.mentions
 
@@ -67,24 +67,24 @@ class TreacheryCog(commands.Cog, name="Treachery"):
 
         await ctx.send(msg)
 
-    @commands.command(help="Add player(s) to the game")
+    @commands.command(help='Add player(s) to the game')
     async def add(self, ctx):
         new_players = ctx.message.mentions or [ctx.author]
         msg = self.state.add_players(new_players)
 
         await ctx.send(msg)
 
-    @commands.command(help="Remove player(s) from the game")
+    @commands.command(help='Remove player(s) from the game')
     async def remove(self, ctx):
         players_to_remove = ctx.message.mentions or [ctx.author]
         msg = self.state.remove_players(players_to_remove)
 
         await ctx.send(msg)
 
-    @commands.command(help="Deal out role cards to current players")
+    @commands.command(help='Deal out role cards to current players')
     async def deal(self, ctx):
         if not self.state.players:
-            await ctx.send("Yo, you need players dude.")
+            await ctx.send('Yo, you need players dude.')
             return
 
         player_msgs, game_msg = self.state.deal()
@@ -94,44 +94,44 @@ class TreacheryCog(commands.Cog, name="Treachery"):
 
         await ctx.send(game_msg)
 
-    @commands.command(help="Shuffle the role deck")
+    @commands.command(help='Shuffle the role deck')
     async def shuffle(self, ctx):
         msg = self.state.shuffle()
         await ctx.send(msg)
 
-    @commands.command(help="Return the state of the role deck")
+    @commands.command(help='Return the state of the role deck')
     async def deck(self, ctx):
         msg = str(self.state.role_deck)
         await ctx.send(msg)
 
-    @commands.command(help="The Wearer of Masks card")
+    @commands.command(help='The Wearer of Masks card')
     async def masks(self, ctx, x: int = None):
         if x is None:
-            await ctx.send("You need to specify a number for X.")
+            await ctx.send('You need to specify a number for X.')
             return
 
         cards = self.state.wearer_of_masks(x)
-        url_msg = ""
+        url_msg = ''
 
         for card in cards:
             url = treachery.card_image(card)
             if len(url_msg) + len(url) + 1 >= 2000:
                 await ctx.send(url_msg)
-                url_msg = ""
-            url_msg += f"{url}\n"
+                url_msg = ''
+            url_msg += f'{url}\n'
 
         if url_msg:
             await ctx.send(url_msg)
 
         if len(cards) > 25:
-            await ctx.send("Too many cards to use buttons.")
+            await ctx.send('Too many cards to use buttons.')
             return
 
         view = WearerOfMasksView(cards, ctx.author)
-        await ctx.send("Pick a non-leader card to copy:", view=view)
+        await ctx.send('Pick a non-leader card to copy:', view=view)
         await view.wait()
 
-    @commands.command(help="The Puppet Master card")
+    @commands.command(help='The Puppet Master card')
     async def puppet(self, ctx, *, arg: str = None):
         if not arg:
             player_roles_msg = self.state.player_roles_msg(ctx.author.name)
@@ -142,25 +142,25 @@ class TreacheryCog(commands.Cog, name="Treachery"):
         for player in self.state.players:
             await player.send(new_role_msgs[player.name])
 
-    @commands.command(help="Reset treachery game state")
+    @commands.command(help='Reset treachery game state')
     async def reset(self, ctx):
         self.state = game_state.TreacheryGameState()
-        await ctx.send("Reset players and role deck")
+        await ctx.send('Reset players and role deck')
 
 
 @bot.event
 async def on_ready():
-    print(f"✅ Bot online: {bot.user.name}")
+    print(f'✅ Bot online: {bot.user.name}')
 
 
 def run():
     async def main():
         await bot.add_cog(TreacheryCog(bot))
-        token = pathlib.Path("token.txt").read_text().strip()
+        token = pathlib.Path('token.txt').read_text().strip()
         await bot.start(token)
 
     asyncio.run(main())
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     run()
