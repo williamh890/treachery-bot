@@ -30,9 +30,10 @@ class TreacheryGameState:
 
         return self.players_status_msg
 
-    def deal(self):
+    def deal(self, leader_player):
         self.game_number += 1
-        self.current_roles = self.role_deck.deal([player.name for player in self.players])
+        non_leader_players = [player.name for player in self.players if player.name != leader_player.name]
+        self.current_roles = self.role_deck.deal(leader_player.name, non_leader_players)
 
         player_msgs = {}
         for player in self.players:

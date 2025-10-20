@@ -87,7 +87,18 @@ class TreacheryCog(commands.Cog, name='Treachery'):
             await ctx.send('Yo, you need players dude.')
             return
 
-        player_msgs, game_msg = self.state.deal()
+        leader = ctx.message.mentions
+        if not leader:
+            await ctx.send('Yo, you need to select a leader.')
+            return
+
+        if len(leader) > 2:
+            await ctx.send('Yo, there can only be one leader.')
+            return
+
+        leader_player = leader.pop()
+
+        player_msgs, game_msg = self.state.deal(leader_player)
 
         for player in self.state.players:
             await player.send(player_msgs[player.name])

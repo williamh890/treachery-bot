@@ -18,8 +18,10 @@ class RoleDeck:
             [f'    {name}: {len(roles)}' for name, roles in self.cards_by_role.items()]
         )
 
-    def deal(self, players, spice_pct=0.02):
-        player_roles = _deal_roles(players)
+    def deal(self, leader, players, spice_pct=0.02):
+        player_roles = _deal_non_leader_roles(players)
+        player_roles[leader] = 'Leader'
+
         player_role_cards = {}
 
         for role, count in Counter(player_roles.values()).items():
@@ -38,40 +40,35 @@ class RoleDeck:
         return [card for card in self.all_cards if card['types']['subtype'] == role]
 
 
-def _deal_roles(players, spice_pct=0.02):
+def _deal_non_leader_roles(players, spice_pct=0.02):
     num_players = len(players)
-    # assert num_players > 3 and num_players < 9, f"Can't play treachery with {num_players} players"
 
-    if num_players == 1:
-        roles = [random.choice(['Traitor', 'Assassin', 'Assassin', 'Leader'])]
-    elif num_players < 4:
-        roles = [random.choice(['Traitor', 'Assassin', 'Assassin']) for _ in range(num_players - 1)] + ['Leader']
+    if num_players < 3:
+        roles = [random.choice(['Traitor', 'Assassin', 'Guardian']) for _ in range(num_players)]
+    elif num_players == 3:
+        roles = ['Traitor', 'Assassin', 'Assassin']
     elif num_players == 4:
-        roles = ['Traitor', 'Assassin', 'Assassin', 'Leader']
+        roles = ['Guardian', 'Traitor', 'Assassin', 'Assassin']
     elif num_players == 5:
-        roles = ['Guardian', 'Traitor', 'Assassin', 'Assassin', 'Leader']
+        roles = ['Guardian', 'Traitor', 'Assassin', 'Assassin', 'Assassin']
     elif num_players == 6:
-        roles = ['Guardian', 'Traitor', 'Assassin', 'Assassin', 'Assassin', 'Leader']
+        roles = [
+            'Guardian',
+            'Guardian',
+            'Traitor',
+            'Assassin',
+            'Assassin',
+            'Assassin',
+        ]
     elif num_players == 7:
         roles = [
             'Guardian',
             'Guardian',
             'Traitor',
-            'Assassin',
-            'Assassin',
-            'Assassin',
-            'Leader',
-        ]
-    elif num_players == 8:
-        roles = [
-            'Guardian',
-            'Guardian',
-            'Traitor',
             'Traitor',
             'Assassin',
             'Assassin',
             'Assassin',
-            'Leader',
         ]
 
     random.shuffle(roles)
@@ -86,20 +83,14 @@ def _deal_roles(players, spice_pct=0.02):
 
 
 def _add_all_traitor_spice(roles):
-    if 'Leader' not in roles:
-        return ['Traitor']
-
-    return ['Traitor'] * (len(roles) - 1) + ['Leader']
+    return ['Traitor'] * len(roles)
 
 
 def _role_chaos(roles):
-    roles = [role for role in roles if role != 'Leader']
-    rng_role = random.choice(['Traitor', 'Assassin', 'Assassin'])
+    rng_role = random.choice(['Traitor', 'Traitor', 'Assassin', 'Guardian'])
     roles.pop()
 
     return roles + [rng_role]
-
-
 
 
 def puppet_master(player_roles, message):
