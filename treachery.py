@@ -18,7 +18,7 @@ class RoleDeck:
             [f'    {name}: {len(roles)}' for name, roles in self.cards_by_role.items()]
         )
 
-    def deal(self, players):
+    def deal(self, players, spice_pct=0.02):
         player_roles = _deal_roles(players)
         player_role_cards = {}
 
@@ -74,10 +74,13 @@ def _deal_roles(players, spice_pct=0.02):
             'Leader',
         ]
 
+    random.shuffle(roles)
+
     if random.random() < spice_pct:
         roles = _add_all_traitor_spice(roles)
 
-    random.shuffle(roles)
+    if random.random() < spice_pct:
+        roles = _role_chaos(roles)
 
     return {player: role for player, role in zip(players, roles)}
 
@@ -87,6 +90,16 @@ def _add_all_traitor_spice(roles):
         return ['Traitor']
 
     return ['Traitor'] * (len(roles) - 1) + ['Leader']
+
+
+def _role_chaos(roles):
+    roles = [role for role in roles if role != 'Leader']
+    rng_role = random.choice(['Traitor', 'Assassin', 'Assassin'])
+    roles.pop()
+
+    return roles + [rng_role]
+
+
 
 
 def puppet_master(player_roles, message):

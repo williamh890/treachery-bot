@@ -44,7 +44,7 @@ class TreacheryGameState:
         roles = [role['types']['subtype'] for role in self.current_roles.values()]
 
         game_msg = f'Game {self.game_number}:\n'
-        game_msg += f'    Dealt out {len(roles)} roles: {", ".join(roles)}'
+        game_msg += f'    Dealt out {len(roles)}'
 
         return player_msgs, game_msg
 

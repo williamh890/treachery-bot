@@ -29,7 +29,7 @@ def test_deal_roles():
 
 def test_get_role_cards():
     players = {'p1', 'p2', 'p3', 'p4'}
-    role_cards = treachery.RoleDeck().deal(players)
+    role_cards = treachery.RoleDeck().deal(players, spice_pct=0)
 
     assert role_cards.keys() == players
     assert set(card['types']['subtype'] for card in role_cards.values()) == {
@@ -45,13 +45,13 @@ def test_multiple_deals():
     seen_roles = set()
 
     for _ in range(9):
-        role_cards = role_deck.deal(players)
+        role_cards = role_deck.deal(players, spice_pct=0)
         dealt = [role['name'] for role in role_cards.values()]
 
         assert all(role not in seen_roles for role in dealt)
         seen_roles.update(dealt)
 
-    role_cards = role_deck.deal(players)
+    role_cards = role_deck.deal(players, spice_pct=0)
     dealt = [role['name'] for role in role_cards.values()]
     assert any(role in seen_roles for role in dealt)
 
@@ -61,7 +61,7 @@ def test_shuffle():
     role_deck = treachery.RoleDeck()
 
     for _ in range(9):
-        role_deck.deal(players)
+        role_deck.deal(players, spice_pct=0)
 
     assert len(role_deck.cards_by_role['Assassin']) == 0
 
@@ -109,3 +109,7 @@ def test_all_traitor_spice():
             'Leader',
         ]
     ) == ['Traitor', 'Traitor', 'Traitor', 'Traitor', 'Leader']
+
+
+def test_role_chaos():
+    assert 'RngRole' not in treachery._role_chaos(['RngRole', 'Leader'])
