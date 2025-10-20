@@ -10,7 +10,7 @@ DATA_PATH = pathlib.Path(__file__).parent / 'data'
 
 class RoleDeck:
     def __init__(self):
-        self.all_cards = load_treachery_cards()
+        self.all_cards = _load_treachery_cards()
         self.cards_by_role = get_cards_by_role(self.all_cards)
 
     def __str__(self):
@@ -120,11 +120,25 @@ def wearer_of_masks(role_deck, x):
     return random.sample(non_leader_cards, x)
 
 
-def load_treachery_cards():
-    with pathlib.Path('cards.json').open('r') as f:
+def _load_treachery_cards():
+    cards_path = pathlib.Path('cards.json')
+
+    if not cards_path.exists():
+        _download_cards(cards_path)
+
+    with cards_path.open('r') as f:
         cards = json.load(f)
 
     return cards['cards']
+
+
+def _download_cards(cards_path):
+    cards_url = 'https://mtgtreachery.net/rules/oracle/treachery-cards.json'
+    resp = requests.get(cards_url)
+
+    with cards_path.open('wb') as f:
+        for chunk in resp.iter_content(chunk_size=8192):
+            f.write(chunk)
 
 
 def get_cards_by_role(cards):
