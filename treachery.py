@@ -33,6 +33,20 @@ class RoleDeck:
 
         return player_role_cards
 
+    def reroll(self, dealt_roles):
+        count = len(dealt_roles)
+        role_type = dealt_roles[0]['types']['subtype']
+
+        if len(self.cards_by_role[role_type]) < count:
+            dealt_card_names = set(r['name'] for r in dealt_roles)
+
+            self.cards_by_role[role_type] = [
+                r for r in self._get_all_cards_for(role) if r['name'] not in dealt_card_names
+            ]
+
+        new_role = self.cards_by_role[role_type].pop()
+        return new_role
+
     def shuffle(self):
         self.cards_by_role = get_cards_by_role(self.all_cards)
 

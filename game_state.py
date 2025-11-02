@@ -7,6 +7,9 @@ class TreacheryGameState:
         self.role_deck = treachery.RoleDeck()
         self.current_roles = None
         self.game_number = 0
+        self.has_rerolled = set()
+        self.game_channel = None
+        self.deal_messages = set()
 
     def set_players(self, players):
         self.players = players
@@ -39,15 +42,47 @@ class TreacheryGameState:
         for player in self.players:
             role = self.current_roles[player.name]
             image = treachery.card_image(role)
+            role_info = f'{role["types"]["subtype"]} - {role["name"]}'
+            msg = f'Game {self.game_number}:\n'
+            msg += f'    {role_info}\n\n'
+            msg += f'{image}\n'
 
-            player_msgs[player.name] = f'Game {self.game_number}\n{image}'
+            player_msgs[player.name] = msg
 
         roles = [role['types']['subtype'] for role in self.current_roles.values()]
 
-        game_msg = f'Game {self.game_number}:\n'
-        game_msg += f'    Dealt out {len(roles)}'
+        game_msg = f'    Dealt out {len(roles)} roles'
 
         return player_msgs, game_msg
+
+    def can_player_reroll(self, player):
+        if player.name in self.has_rerolled:
+            return 'Yr out of rerolls for the night.'
+
+        if not self.current_roles or player.name not in self.current_roles.keys():
+            return "You haven't been dealt out a role."
+        player_role = self.current_roles[player.name]
+
+        if player_role['types']['subtype'] == 'Leader':
+            return "You can't reroll as the leader"
+
+        return None
+
+    def reroll(self, player):
+        role_type = self.current_roles[player.name]['types']['subtype']
+        dealt_roles = [
+            role for role in self.current_roles.values()
+            if role['types']['subtype'] == role_type
+        ]
+
+        role = self.role_deck.reroll(dealt_roles)
+
+        self.has_rerolled.add(player.name)
+
+        image = treachery.card_image(role)
+        player_msg = f'Reroll for Game {self.game_number}\n{image}'
+
+        return player_msg
 
     def shuffle(self):
         self.role_deck.shuffle()

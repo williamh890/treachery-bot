@@ -9,6 +9,7 @@ import game_state
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.reactions = True
 bot = commands.Bot(command_prefix='_', intents=intents)
 
 
@@ -99,11 +100,45 @@ class TreacheryCog(commands.Cog, name='Treachery'):
         leader_player = leader.pop()
 
         player_msgs, game_msg = self.state.deal(leader_player)
+        self.state.game_channel = ctx.channel
+        self.state.deal_messages = set()
 
         for player in self.state.players:
-            await player.send(player_msgs[player.name])
+            msg = player_msgs[player.name]
 
-        await ctx.send(game_msg)
+            if player.name == leader_player.name:
+                await self.state.game_channel.send(msg)
+            else:
+                message = await player.send(msg)
+                self.state.deal_messages.add(message.id)
+                await message.add_reaction('game_dice')
+
+        await self.state.game_channel.send(game_msg)
+
+    @commands.command(help='Reroll a delt out role card')
+    async def reroll(self, ctx):
+        player = ctx.author
+
+        await self._reroll_player(player)
+
+    @commands.Cog.listener()
+    async def on_reaction_add(self, reaction, user):
+        if user.bot:
+            return
+
+        if reaction.message.id in self.state.deal_messages and reaction.emoji == 'game_dice':
+            await self._reroll_player(user)
+
+    async def _reroll_player(self, player):
+        if (err_msg := self.state.can_player_reroll(player)):
+            await player.send(err_msg)
+            return
+
+        new_role_msg = self.state.reroll(player)
+
+        await self.state.game_channel.send(f'{player.name} just used their reroll for the night')
+        await player.send(new_role_msg)
+
 
     @commands.command(help='Shuffle the role deck')
     async def shuffle(self, ctx):
