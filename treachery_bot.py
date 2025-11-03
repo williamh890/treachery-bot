@@ -111,7 +111,9 @@ class TreacheryCog(commands.Cog, name='Treachery'):
             else:
                 message = await player.send(msg)
                 self.state.deal_messages.add(message.id)
-                await message.add_reaction('game_dice')
+
+                if self.state.can_player_reroll(player) is None:
+                    await message.add_reaction('🎲')
 
         await self.state.game_channel.send(game_msg)
 
@@ -119,17 +121,6 @@ class TreacheryCog(commands.Cog, name='Treachery'):
     async def reroll(self, ctx):
         player = ctx.author
 
-        await self._reroll_player(player)
-
-    @commands.Cog.listener()
-    async def on_reaction_add(self, reaction, user):
-        if user.bot:
-            return
-
-        if reaction.message.id in self.state.deal_messages and reaction.emoji == 'game_dice':
-            await self._reroll_player(user)
-
-    async def _reroll_player(self, player):
         if (err_msg := self.state.can_player_reroll(player)):
             await player.send(err_msg)
             return
@@ -138,7 +129,6 @@ class TreacheryCog(commands.Cog, name='Treachery'):
 
         await self.state.game_channel.send(f'{player.name} just used their reroll for the night')
         await player.send(new_role_msg)
-
 
     @commands.command(help='Shuffle the role deck')
     async def shuffle(self, ctx):
