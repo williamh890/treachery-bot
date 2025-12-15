@@ -82,6 +82,13 @@ class TreacheryCog(commands.Cog, name='Treachery'):
 
         await ctx.send(msg)
 
+    @commands.command(help='Alias for remove')
+    async def drop(self, ctx):
+        players_to_remove = ctx.message.mentions or [ctx.author]
+        msg = self.state.remove_players(players_to_remove)
+
+        await ctx.send(msg)
+
     @commands.command(help='Deal out role cards to current players')
     async def deal(self, ctx):
         if not self.state.players:
