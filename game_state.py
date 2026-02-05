@@ -89,6 +89,11 @@ class TreacheryGameState:
 
         return 'Role deck has been reshuffled'
 
+    def reset_rerolls(self):
+        self.has_rerolled = set()
+
+        return 'Player rerolls have been reset'
+
     def wearer_of_masks(self, x):
         return treachery.wearer_of_masks(self.role_deck, x)
 

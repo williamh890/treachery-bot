@@ -115,12 +115,12 @@ class TreacheryCog(commands.Cog, name='Treachery'):
 
             if player.name == leader_player.name:
                 await self.state.game_channel.send(msg)
-            else:
-                message = await player.send(msg)
-                self.state.deal_messages.add(message.id)
 
-                if self.state.can_player_reroll(player) is None:
-                    await message.add_reaction('🎲')
+            message = await player.send(msg)
+            self.state.deal_messages.add(message.id)
+
+            if self.state.can_player_reroll(player) is None:
+                await message.add_reaction('🎲')
 
         await self.state.game_channel.send(game_msg)
 
@@ -189,6 +189,12 @@ class TreacheryCog(commands.Cog, name='Treachery'):
     async def reset(self, ctx):
         self.state = game_state.TreacheryGameState()
         await ctx.send('Reset players and role deck')
+
+    @commands.command(help='Reset rerolls')
+    async def reset_rerolls(self, ctx):
+        msg = self.state.reset_rerolls()
+
+        await ctx.send(msg)
 
 
 @bot.event

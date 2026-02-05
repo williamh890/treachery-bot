@@ -41,7 +41,7 @@ class RoleDeck:
             dealt_card_names = set(r['name'] for r in dealt_roles)
 
             self.cards_by_role[role_type] = [
-                r for r in self._get_all_cards_for(role) if r['name'] not in dealt_card_names
+                r for r in self._get_all_cards_for(role_type) if r['name'] not in dealt_card_names
             ]
 
         new_role = self.cards_by_role[role_type].pop()
