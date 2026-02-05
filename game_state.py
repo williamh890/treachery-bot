@@ -63,9 +63,6 @@ class TreacheryGameState:
             return "You haven't been dealt out a role."
         player_role = self.current_roles[player.name]
 
-        if player_role['types']['subtype'] == 'Leader':
-            return "You can't reroll as the leader"
-
         return None
 
     def reroll(self, player):

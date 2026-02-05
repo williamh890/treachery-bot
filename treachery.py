@@ -18,7 +18,7 @@ class RoleDeck:
             [f'    {name}: {len(roles)}' for name, roles in self.cards_by_role.items()]
         )
 
-    def deal(self, leader, players, spice_pct=0.02):
+    def deal(self, leader, players, spice_pct=0.03):
         player_roles = _deal_non_leader_roles(players, spice_pct)
         player_roles[leader] = 'Leader'
 

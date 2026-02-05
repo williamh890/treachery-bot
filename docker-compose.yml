@@ -1,0 +1,9 @@
+version: "3.9"
+
+services:
+  discord-bot:
+    image: wbhorn0/wbhorn-containers:discord-bot
+    container_name: discord-bot
+    restart: unless-stopped
+    environment:
+      DISCORD_TOKEN: "YOUR_DISCORD_BOT_TOKEN_HERE"
