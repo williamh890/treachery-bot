@@ -2,11 +2,13 @@ import discord
 import asyncio
 from discord.ext import commands
 import pathlib
+import os
 
 import treachery
 import game_state
 
 
+TOKEN = os.getenv('DISCORD_TOKEN')
 intents = discord.Intents.default()
 intents.message_content = True
 intents.reactions = True
@@ -205,8 +207,7 @@ async def on_ready():
 def run():
     async def main():
         await bot.add_cog(TreacheryCog(bot))
-        token = pathlib.Path('token.txt').read_text().strip()
-        await bot.start(token)
+        await bot.start(TOKEN)
 
     asyncio.run(main())
 

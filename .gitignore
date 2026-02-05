@@ -214,7 +214,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-token.txt
+token.*
 data
-cards.json
 pi_ssh.sh
