@@ -1,3 +1,7 @@
 discord
 requests
 pytest
+
+gspread
+pandas
+google-auth
