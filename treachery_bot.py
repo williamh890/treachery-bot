@@ -6,9 +6,9 @@ import os
 
 import treachery
 import game_state
+import log_games
 
 
-TOKEN = os.getenv('DISCORD_TOKEN')
 intents = discord.Intents.default()
 intents.message_content = True
 intents.reactions = True
@@ -126,6 +126,43 @@ class TreacheryCog(commands.Cog, name='Treachery'):
 
         await self.state.game_channel.send(game_msg)
 
+    @commands.command(help='Log game winners')
+    async def winners(self, ctx, *, arg: str = None):
+        if self.state.current_roles is None:
+            await ctx.send('You gotta deal before you can win...')
+            return
+
+        if ctx.message.mentions:
+            winners = [
+                user.name for user in ctx.message.mentions
+            ]
+
+        elif arg:
+            role_type = arg.strip().lower()
+            print(role_type)
+
+            if role_type in ('assassin', 'a'):
+                winning_role = ('assassin', )
+            elif role_type in ('traitor', 't'):
+                winning_role = ('traitor', )
+            elif role_type in ('leader', 'l', 'guardian', 'g'):
+                winning_role = ('leader', 'guardian')
+            else:
+                await ctx.send(f"Can't determine winners for {role_type}")
+                return
+
+            winners = [
+                player
+                for player, role in self.state.current_roles.items()
+                if role['types']['subtype'].lower() in winning_role
+            ]
+
+        if winners:
+            log_games.log_game(winners, self.state.current_roles)
+            await ctx.send(f"Winners: {', '.join(winners)}")
+        else:
+            await ctx.send("No winners found for that filter.")
+
     @commands.command(help='Reroll a delt out role card')
     async def reroll(self, ctx):
         player = ctx.author
@@ -207,6 +244,9 @@ async def on_ready():
 def run():
     async def main():
         await bot.add_cog(TreacheryCog(bot))
+        TOKEN = os.getenv('DISCORD_TOKEN')
+        if not TOKEN:
+            TOKEN = pathlib.Path('token.txt').read_text().strip()
         await bot.start(TOKEN)
 
     asyncio.run(main())

@@ -17,7 +17,7 @@ class PlayerLog(NamedTuple):
     id: str
 
 
-def log_winners(winners: list[str], current_roles: dict[str, dict]) -> dict:
+def log_game(winners: list[str], current_roles: dict[str, dict]) -> dict:
     game_id = str(uuid.uuid4())
     game_date = datetime.datetime.now().isoformat()
 
@@ -41,9 +41,6 @@ def log_winners(winners: list[str], current_roles: dict[str, dict]) -> dict:
 
 
 def upload_to_sheets(game_logs):
-    SPREADSHEET_NAME = "MTG Treachery Games"
-    WORKSHEET_NAME = "Game Log"
-
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
@@ -66,9 +63,12 @@ def upload_to_sheets(game_logs):
 
     gc = gspread.authorize(credentials)
 
+    SPREADSHEET_NAME = "MTG Treachery Games"
+    WORKSHEET_NAME = "Game Log"
+
     sheet = gc.open(SPREADSHEET_NAME)
     worksheet = sheet.worksheet(WORKSHEET_NAME)
-
+    print(game_logs)
     worksheet.append_rows(game_logs, value_input_option="USER_ENTERED")
 
     print(f"Appended {len(game_logs)} rows to Google Sheet.")

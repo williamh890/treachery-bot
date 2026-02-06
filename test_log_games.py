@@ -1,14 +1,15 @@
 import pytest
 
-from log_winners import log_winners
+from log_games import log_game
 
 
-def test_log_winners(current_roles):
-    result = log_winners(['wbhorn'], current_roles)
+def test_log_game(current_roles):
+    result = log_game(['wbhorn'], current_roles)
     import json
 
     print(json.dumps(result, indent=2))
-    assert len(result) == 1
+    assert len(result) == 2
+    assert len(result) == 2
 
 
 @pytest.fixture
