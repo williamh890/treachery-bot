@@ -8,11 +8,56 @@ import treachery
 import game_state
 import log_games
 
-
 intents = discord.Intents.default()
 intents.message_content = True
 intents.reactions = True
 bot = commands.Bot(command_prefix='_', intents=intents)
+
+
+class PlayerEditSelect(discord.ui.UserSelect):
+    def __init__(self, cog):
+        super().__init__(
+            placeholder="Select current players",
+            min_values=0,
+            max_values=10,
+        )
+        self.cog = cog
+
+    async def callback(self, interaction: discord.Interaction):
+        if self.cog.ui_disabled:
+            await interaction.response.send_message("Player management disabled.", ephemeral=True)
+            return
+
+        # Remove all current players
+        self.cog.state.remove_players(self.cog.state.players.copy())
+
+        # Add all selected members
+        added = []
+        for member in self.values:
+            if member.bot:
+                continue
+            self.cog.state.add_players([member])
+            added.append(member.display_name)
+
+        msg = self.cog.state.players_status_msg
+        if added:
+            msg += f"\nSelected: {', '.join(added)}"
+
+        # Recreate view so dropdown defaults = current players
+        await interaction.response.edit_message(
+            content=msg,
+            view=PlayerManagementView(self.cog)
+        )
+
+
+class PlayerManagementView(discord.ui.View):
+    def __init__(self, cog):
+        super().__init__(timeout=None)
+
+        default_members = [p for p in cog.state.players if isinstance(p, discord.Member)]
+        select = PlayerEditSelect(cog)
+        select.default = default_members
+        self.add_item(select)
 
 
 class WearerOfMasksView(discord.ui.View):
@@ -58,6 +103,8 @@ class TreacheryCog(commands.Cog, name='Treachery'):
     def __init__(self, bot):
         self.bot = bot
         self.state = game_state.TreacheryGameState()
+        self.ui_disabled = False
+        self.player_ui_message: discord.Message | None = None
 
     @commands.command(help='Set players or list all players')
     async def players(self, ctx):
@@ -69,6 +116,25 @@ class TreacheryCog(commands.Cog, name='Treachery'):
             msg = self.state.players_status_msg
 
         await ctx.send(msg)
+
+        self.player_ui_message: discord.Message | None = None
+
+    @commands.command(help="Manage players via UI (toggle add/remove)")
+    async def players_ui(self, ctx):
+        self.ui_disabled = False  # re-enable UI when called
+        view = PlayerManagementView(self)
+
+        if self.player_ui_message:
+            await self.player_ui_message.edit(
+                content=self.state.players_status_msg,
+                view=view
+            )
+        else:
+            message = await ctx.send(
+                content=self.state.players_status_msg,
+                view=view
+            )
+            self.player_ui_message = message
 
     @commands.command(help='Add player(s) to the game')
     async def add(self, ctx):
@@ -111,6 +177,7 @@ class TreacheryCog(commands.Cog, name='Treachery'):
         player_msgs, game_msg = self.state.deal(leader_player)
         self.state.game_channel = ctx.channel
         self.state.deal_messages = set()
+        self.ui_disabled = True
 
         for player in self.state.players:
             msg = player_msgs[player.name]
@@ -242,15 +309,12 @@ class TreacheryCog(commands.Cog, name='Treachery'):
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
-        print('Saw reaction')
         if user.bot:
             return
 
-        print('Not a bot')
         if str(reaction.emoji) != "🎲":
             return
 
-        print('Rerolling')
         await self._handle_reroll(user)
 
 
