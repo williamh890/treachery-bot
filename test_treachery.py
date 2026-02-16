@@ -82,11 +82,6 @@ def test_wearer_of_masks():
     assert len(treachery.wearer_of_masks(cards, 100)) == 18 + 18 + 12
 
 
-def test_puppet_master():
-    cards = treachery.RoleDeck()
-    assert cards
-
-
 def test_all_traitor_spice():
     assert treachery._add_all_traitor_spice(['Assassin']) == ['Traitor']
     assert treachery._add_all_traitor_spice(

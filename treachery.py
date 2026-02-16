@@ -107,12 +107,6 @@ def _role_chaos(roles):
     return roles + [rng_role]
 
 
-def puppet_master(player_roles, message):
-    print(player_roles, message)
-
-    return {}
-
-
 def wearer_of_masks(role_deck, x):
     def is_maskable_card(card):
         return card['types']['subtype'] != 'Leader' and card['name'] != 'The Wearer of Masks'

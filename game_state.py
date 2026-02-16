@@ -51,7 +51,7 @@ class TreacheryGameState:
 
         roles = [role['types']['subtype'] for role in self.current_roles.values()]
 
-        game_msg = f'    Dealt out {len(roles)} roles (click dice to reroll)'
+        game_msg = f'    Dealt out {len(roles)} roles (dice to reroll)'
 
         return player_msgs, game_msg
 
@@ -94,9 +94,6 @@ class TreacheryGameState:
 
     def wearer_of_masks(self, x):
         return treachery.wearer_of_masks(self.role_deck, x)
-
-    def puppet(self):
-        return treachery.puppet_master(self.current_roles)
 
     @property
     def players_status_msg(self):
