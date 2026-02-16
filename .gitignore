@@ -218,3 +218,5 @@ token.*
 data
 pi_ssh.sh
 creds.json
+docker-compose.yml
+generate_compose.py
