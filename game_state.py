@@ -51,7 +51,7 @@ class TreacheryGameState:
 
         roles = [role['types']['subtype'] for role in self.current_roles.values()]
 
-        game_msg = f'    Dealt out {len(roles)} roles'
+        game_msg = f'    Dealt out {len(roles)} roles (click dice to reroll)'
 
         return player_msgs, game_msg
 
@@ -61,6 +61,7 @@ class TreacheryGameState:
 
         if not self.current_roles or player.name not in self.current_roles.keys():
             return "You haven't been dealt out a role."
+
         player_role = self.current_roles[player.name]
 
         return None

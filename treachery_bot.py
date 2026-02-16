@@ -121,10 +121,8 @@ class TreacheryCog(commands.Cog, name='Treachery'):
             message = await player.send(msg)
             self.state.deal_messages.add(message.id)
 
-            if self.state.can_player_reroll(player) is None:
-                await message.add_reaction('🎲')
-
-        await self.state.game_channel.send(game_msg)
+        leader_msg = await self.state.game_channel.send(game_msg)
+        await leader_msg.add_reaction('🎲')
 
     @commands.command(help='Log game winners')
     async def winners(self, ctx, *, arg: str = None):
@@ -165,16 +163,7 @@ class TreacheryCog(commands.Cog, name='Treachery'):
 
     @commands.command(help='Reroll a delt out role card')
     async def reroll(self, ctx):
-        player = ctx.author
-
-        if (err_msg := self.state.can_player_reroll(player)):
-            await player.send(err_msg)
-            return
-
-        new_role_msg = self.state.reroll(player)
-
-        await self.state.game_channel.send(f'{player.name} just used their reroll for the night')
-        await player.send(new_role_msg)
+        await self._handle_reroll(ctx.author)
 
     @commands.command(help='Shuffle the role deck')
     async def shuffle(self, ctx):
@@ -234,6 +223,35 @@ class TreacheryCog(commands.Cog, name='Treachery'):
         msg = self.state.reset_rerolls()
 
         await ctx.send(msg)
+
+    @commands.command(help='Stats Sheet')
+    async def stats(self, ctx):
+        await ctx.send('https://docs.google.com/spreadsheets/d/1YxECCYDunuARaCrhFI5ooKukV-0pi4RqOpU_tadNHAA/edit?gid=1644267183#gid=1644267183')
+
+    async def _handle_reroll(self, user):
+        if (err_msg := self.state.can_player_reroll(user)):
+            await user.send(err_msg)
+            return
+
+        new_role_msg = self.state.reroll(user)
+
+        await user.send(new_role_msg)
+        await self.state.game_channel.send(
+            f'{user.name} just used their reroll for the night'
+        )
+
+    @commands.Cog.listener()
+    async def on_reaction_add(self, reaction, user):
+        print('Saw reaction')
+        if user.bot:
+            return
+
+        print('Not a bot')
+        if str(reaction.emoji) != "🎲":
+            return
+
+        print('Rerolling')
+        await self._handle_reroll(user)
 
 
 @bot.event
