@@ -300,12 +300,15 @@ class TreacheryCog(commands.Cog, name='Treachery'):
             await user.send(err_msg)
             return
 
+        old_roll = self.state.current_roles[user.name]
         new_role_msg = self.state.reroll(user)
 
         await user.send(new_role_msg)
         await self.state.game_channel.send(
             f'{user.name} just used their reroll for the night'
         )
+
+        log_games.log_reroll(old_roll, user.name)
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
