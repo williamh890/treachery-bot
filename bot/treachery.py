@@ -5,7 +5,7 @@ from collections import defaultdict, Counter
 import pathlib
 import urllib
 
-DATA_PATH = pathlib.Path(__file__).parent / 'data'
+ASSET_PATH = pathlib.Path(__file__).parent / 'assets'
 
 
 class RoleDeck:
@@ -120,7 +120,7 @@ def wearer_of_masks(role_deck, x):
 
 
 def _load_treachery_cards():
-    cards_path = pathlib.Path('cards.json')
+    cards_path = ASSET_PATH / 'cards.json'
 
     if not cards_path.exists():
         _download_cards(cards_path)
@@ -162,6 +162,6 @@ def card_image(card):
 def download_image(card, url):
     resp = requests.get(url)
 
-    with (DATA_PATH / 'card-images' / f'{card["name"]}.jpg').open('wb') as f:
+    with (ASSET_PATH / 'card-images' / f'{card["name"]}.jpg').open('wb') as f:
         print(f'downloaded {card["name"]}')
         f.write(resp.content)

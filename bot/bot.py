@@ -1,4 +1,5 @@
 import discord
+import datetime
 import asyncio
 from discord.ext import commands
 import pathlib
@@ -101,8 +102,19 @@ class TreacheryCog(commands.Cog, name='Treachery Bot'):
     def __init__(self, bot):
         self.bot = bot
         self.state = game_state.TreacheryGameState()
+        self.game_start_time = None
+        self.game_notes = {}
 
-    @commands.command(help='Set players or list all players')
+    @commands.group(invoke_without_command=True, help="Manage players via a dropdown")
+    async def players(self, ctx):
+        view = PlayerManagementView(self)
+
+        await ctx.send(
+            content=self.state.players_status_msg,
+            view=view
+        )
+
+    @players.command(aliases=['list', 'l'], help='Set players or list all players')
     async def list_players(self, ctx):
         new_players = ctx.message.mentions
 
@@ -114,15 +126,6 @@ class TreacheryCog(commands.Cog, name='Treachery Bot'):
         await ctx.send(msg)
 
         self.player_ui_message: discord.Message | None = None
-
-    @commands.command(help="Manage players via a dropdown")
-    async def players(self, ctx):
-        view = PlayerManagementView(self)
-
-        await ctx.send(
-            content=self.state.players_status_msg,
-            view=view
-        )
 
     @commands.command(help='Add player(s) to the game')
     async def add(self, ctx):
@@ -178,6 +181,20 @@ class TreacheryCog(commands.Cog, name='Treachery Bot'):
         leader_msg = await self.state.game_channel.send(game_msg)
         await leader_msg.add_reaction('🎲')
 
+        self.game_start_time = datetime.datetime.now()
+        self.game_notes = {}
+
+    @commands.command(aliases=['notes', 'n'], help='Make a note on the game before _winners and after _deal')
+    async def note(self, ctx, *, arg: str = None):
+        player_name = ctx.author.name
+        if not arg:
+            await ctx.send('No note passed...')
+            return
+
+        self.game_notes[player_name] = arg
+        await ctx.send(f'Added to game notes for {ctx.author.name}: {arg}')
+
+
     @commands.command(help='Log game winners: either winning role [(a)ssassin, (l)eader, (t)raitor] or mention list of winners')
     async def winners(self, ctx, *, arg: str = None):
         if self.state.current_roles is None:
@@ -210,10 +227,17 @@ class TreacheryCog(commands.Cog, name='Treachery Bot'):
             ]
 
         if winners:
-            log_games.log_game(winners, self.state.current_roles)
-            await ctx.send(f"Winners: {', '.join(winners)}")
+            try:
+                log_games.log_game(winners, self.state.current_roles, self.game_start_time, self.game_notes)
+                await ctx.send(f"Winners: {', '.join(winners)}")
+            except Exception as e:
+                await ctx.send(f"Error logging game: {e}")
+            else:
+                self.game_start_time = None
+
         else:
             await ctx.send("No winners found for that filter.")
+
 
     @commands.command(help='Reroll a delt out role card (only once per session)')
     async def reroll(self, ctx):
@@ -256,13 +280,13 @@ class TreacheryCog(commands.Cog, name='Treachery Bot'):
         await ctx.send('Pick a non-leader card to copy:', view=view)
         await view.wait()
 
-    @commands.command(help='Reset treachery game state')
+    @commands.group(invoke_without_command=True, help='Reset treachery game state')
     async def reset(self, ctx):
         self.state = game_state.TreacheryGameState()
         await ctx.send('Reset players and role deck')
 
-    @commands.command(help='Reset rerolls')
-    async def reset_rerolls(self, ctx):
+    @reset.command(aliases=['c', 'custom'], help='Reset rerolls')
+    async def rerolls(self, ctx):
         msg = self.state.reset_rerolls()
 
         await ctx.send(msg)
@@ -297,45 +321,6 @@ class TreacheryCog(commands.Cog, name='Treachery Bot'):
         await self._handle_reroll(user)
 
 
-class TreacheryHelp(commands.HelpCommand):
-    async def send_bot_help(self, mapping):
-        categories = {
-            "Player": ["players", "list_players", "add", "drop", "remove"],
-            "Game": ["deal", "reroll", "deck", "winners"],
-            "Reset": ["reset", "reset_rerolls", "shuffle"],
-            "Cards": ["masks"],
-            "Misc": ["stats", "help"],
-        }
-
-        all_commands = {c.name: c for cmds in mapping.values() for c in cmds}
-
-        lines = ["Treachery:\n"]
-
-        for cat_name, cmds in categories.items():
-            lines.append(f"{cat_name}:")
-            for name in cmds:
-                cmd = all_commands.get(name)
-                if cmd:
-                    lines.append(f"  {cmd.name:<14} {cmd.help}")
-            lines.append("")
-
-        # Any uncategorized commands
-        uncategorized = [
-            c for c in all_commands.values()
-            if all(c.name not in lst for lst in categories.values())
-        ]
-        if uncategorized:
-            lines.append("No Category:")
-            for c in uncategorized:
-                lines.append(f"  {c.name:<14} {c.help}")
-            lines.append("")
-
-        await self.get_destination().send("```" + "\n".join(lines) + "```")
-
-    async def send_command_help(self, command):
-        await self.get_destination().send(f"**{command.name}** — {command.help}")
-
-
 @bot.event
 async def on_ready():
     print(f'✅ Bot online: {bot.user.name}')
@@ -343,8 +328,6 @@ async def on_ready():
 
 def run():
     async def main():
-        bot.help_command = TreacheryHelp()
-
         await bot.add_cog(TreacheryCog(bot))
         TOKEN = os.getenv('DISCORD_TOKEN')
         if not TOKEN:

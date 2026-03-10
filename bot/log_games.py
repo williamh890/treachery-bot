@@ -1,4 +1,5 @@
 import datetime
+import pathlib
 import uuid
 from typing import NamedTuple
 import gspread
@@ -8,13 +9,16 @@ import json
 
 
 class PlayerLog(NamedTuple):
+    event_id: str
     game_id: int
     player_name: str
     is_winner: bool
     role_type: str
     role_name: str
-    date: str
-    id: str
+    game_start: str
+    game_end: str
+    note: str
+
 
 class RerollLog(NamedTuple):
     player_name: str
@@ -24,20 +28,30 @@ class RerollLog(NamedTuple):
     id: str
 
 
-def log_game(winners: list[str], current_roles: dict[str, dict]) -> dict:
+def log_game(winners: list[str], current_roles: dict[str, dict], start_time: datetime.datetime, notes: dict) -> dict:
+    if notes is None:
+        notes = {}
+
     game_id = str(uuid.uuid4())
-    game_date = datetime.datetime.now().isoformat()
+    game_end = datetime.datetime.now().isoformat()
+
+    if start_time:
+        start_time = start_time.isoformat()
+    else:
+        start_time = 'NULL'
 
     game_logs = []
     for player, role in current_roles.items():
         player_log = PlayerLog(
+            event_id=str(uuid.uuid4()),
             game_id=game_id,
             player_name=player,
             is_winner=player in winners,
             role_type=role['types']['subtype'],
             role_name=role['name'],
-            date=game_date,
-            id=str(uuid.uuid4())
+            game_start=start_time,
+            game_end=game_end,
+            note=notes.get(player, 'NULL'),
         )
 
         game_logs.append(player_log)
@@ -103,7 +117,7 @@ def _login_to_sheet():
     if raw_json:
         service_account_info = json.loads(raw_json)
     else:
-        with open('creds.json') as f:
+        with (pathlib.Path(__file__).parent / 'creds.json').open() as f:
             service_account_info = json.load(f)
 
     # Fix escaped newlines (common in env vars)

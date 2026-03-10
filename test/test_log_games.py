@@ -1,11 +1,22 @@
 import pytest
+import datetime
 
 from log_games import log_game, log_reroll
 
 
 def test_log_game(current_roles):
-    result = log_game(['wbhorn'], current_roles)
+    game_start_time = datetime.datetime.now() - datetime.timedelta(hours=2)
+    notes = {'wbhorn': 'a note of the game', 'negative274': 'another note'}
+
+    result = log_game(['wbhorn'], current_roles, game_start_time, notes)
     import json
+
+    print(json.dumps(result, indent=2))
+    assert len(result) == 2
+    assert len(result) == 2
+
+    notes = {}
+    result = log_game(['negative274'], current_roles, game_start_time, notes)
 
     print(json.dumps(result, indent=2))
     assert len(result) == 2
@@ -16,6 +27,7 @@ def test_log_reroll(reroll_event):
     role, user = reroll_event
 
     log_reroll(role, user)
+
 
 @pytest.fixture
 def current_roles():
