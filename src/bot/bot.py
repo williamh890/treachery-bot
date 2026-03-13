@@ -7,7 +7,7 @@ import os
 
 import treachery
 import game_state
-import log_games
+import spreadsheet
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -18,7 +18,7 @@ bot = commands.Bot(command_prefix='_', intents=intents)
 class PlayerEditSelect(discord.ui.UserSelect):
     def __init__(self, cog):
         super().__init__(
-            placeholder="Select current players",
+            placeholder='Select current players',
             min_values=0,
             max_values=10,
         )
@@ -36,13 +36,9 @@ class PlayerEditSelect(discord.ui.UserSelect):
 
         msg = self.cog.state.players_status_msg
         if added:
-            msg += f"\nSelected: {', '.join(added)}"
+            msg += f'\nSelected: {", ".join(added)}'
 
-        await interaction.response.send_message(
-            content=msg,
-            view=PlayerManagementView(self.cog),
-            ephemeral=False
-        )
+        await interaction.response.send_message(content=msg, view=PlayerManagementView(self.cog), ephemeral=False)
 
 
 class PlayerManagementView(discord.ui.View):
@@ -51,9 +47,7 @@ class PlayerManagementView(discord.ui.View):
         self.cog = cog
 
         # Pre-select current players in dropdown
-        default_members = [
-            p for p in cog.state.players if isinstance(p, discord.Member)
-        ]
+        default_members = [p for p in cog.state.players if isinstance(p, discord.Member)]
         select = PlayerEditSelect(cog)
         select.default = default_members
         self.add_item(select)
@@ -66,14 +60,14 @@ class WearerOfMasksView(discord.ui.View):
         self.author = author
 
         for card in cards:
-            role = card['types']['subtype']
+            role = card.role
             style = {
                 'Traitor': discord.ButtonStyle.grey,
                 'Assassin': discord.ButtonStyle.red,
                 'Guardian': discord.ButtonStyle.primary,
             }[role]
 
-            button = discord.ui.Button(label=card['name'], style=style)
+            button = discord.ui.Button(label=card.name, style=style)
             button.callback = self.make_callback(button)
 
             self.add_item(button)
@@ -105,14 +99,11 @@ class TreacheryCog(commands.Cog, name='Treachery Bot'):
         self.game_start_time = None
         self.game_notes = {}
 
-    @commands.group(invoke_without_command=True, help="Manage players via a dropdown")
+    @commands.group(invoke_without_command=True, help='Manage players via a dropdown')
     async def players(self, ctx):
         view = PlayerManagementView(self)
 
-        await ctx.send(
-            content=self.state.players_status_msg,
-            view=view
-        )
+        await ctx.send(content=self.state.players_status_msg, view=view)
 
     @players.command(aliases=['list', 'l'], help='Set players or list all players')
     async def list_players(self, ctx):
@@ -194,54 +185,51 @@ class TreacheryCog(commands.Cog, name='Treachery Bot'):
         self.game_notes[player_name] = arg
         await ctx.send(f'Added to game notes for {ctx.author.name}: {arg}')
 
-
-    @commands.command(help='Log game winners: either winning role [(a)ssassin, (l)eader, (t)raitor] or mention list of winners')
+    @commands.command(
+        help='Log game winners: either winning role [(a)ssassin, (l)eader, (t)raitor] or mention list of winners'
+    )
     async def winners(self, ctx, *, arg: str = None):
         if self.state.current_roles is None:
             await ctx.send('You gotta deal before you can win...')
             return
 
         if ctx.message.mentions:
-            winners = [
-                user.name for user in ctx.message.mentions
-            ]
+            winners = [user.name for user in ctx.message.mentions]
 
         elif arg:
             role_type = arg.strip().lower()
             print(role_type)
 
             if role_type in ('assassin', 'a'):
-                winning_role = ('assassin', )
+                winning_role = ('assassin',)
             elif role_type in ('traitor', 't'):
-                winning_role = ('traitor', )
+                winning_role = ('traitor',)
             elif role_type in ('leader', 'l', 'guardian', 'g'):
                 winning_role = ('leader', 'guardian')
             else:
                 await ctx.send(f"Can't determine winners for {role_type}")
                 return
 
-            winners = [
-                player
-                for player, role in self.state.current_roles.items()
-                if role['types']['subtype'].lower() in winning_role
-            ]
+            winners = [player for player, role in self.state.current_roles.items() if role.role.lower() in winning_role]
 
         if winners:
             try:
-                log_games.log_game(winners, self.state.current_roles, self.game_start_time, self.game_notes)
-                await ctx.send(f"Winners: {', '.join(winners)}")
+                spreadsheet.log_game(winners, self.state.current_roles, self.game_start_time, self.game_notes)
+                await ctx.send(f'Winners: {", ".join(winners)}')
             except Exception as e:
-                await ctx.send(f"Error logging game: {e}")
+                await ctx.send(f'Error logging game: {e}')
             else:
                 self.game_start_time = None
 
         else:
-            await ctx.send("No winners found for that filter.")
-
+            await ctx.send('No winners found for that filter.')
 
     @commands.command(help='Reroll a delt out role card (only once per session)')
     async def reroll(self, ctx):
-        await self._handle_reroll(ctx.author)
+        try:
+            await self._handle_reroll(ctx.author)
+        except Exception as e:
+            await ctx.send(f'Error rerolling: {e}')
 
     @commands.command(help='Shuffle the role deck')
     async def shuffle(self, ctx):
@@ -283,6 +271,11 @@ class TreacheryCog(commands.Cog, name='Treachery Bot'):
     @commands.group(invoke_without_command=True, help='Reset treachery game state')
     async def reset(self, ctx):
         self.state = game_state.TreacheryGameState()
+
+        failed_to_load = self.state.role_deck.custom_cards_failed
+        if failed_to_load:
+            await ctx.send('Failed to load custom cards: {failed_to_load}')
+
         await ctx.send('Reset players and role deck')
 
     @reset.command(aliases=['c', 'custom'], help='Reset rerolls')
@@ -293,29 +286,34 @@ class TreacheryCog(commands.Cog, name='Treachery Bot'):
 
     @commands.command(help='Link to google sheet with game stats')
     async def stats(self, ctx):
-        await ctx.send('https://docs.google.com/spreadsheets/d/1YxECCYDunuARaCrhFI5ooKukV-0pi4RqOpU_tadNHAA/edit?gid=1644267183#gid=1644267183')
+        await ctx.send(
+            'https://docs.google.com/spreadsheets/d/1YxECCYDunuARaCrhFI5ooKukV-0pi4RqOpU_tadNHAA/edit?gid=1644267183#gid=1644267183'
+        )
 
     async def _handle_reroll(self, user):
-        if (err_msg := self.state.can_player_reroll(user)):
+        if err_msg := self.state.can_player_reroll(user):
             await user.send(err_msg)
             return
 
         old_roll = self.state.current_roles[user.name]
-        new_role_msg = self.state.reroll(user)
+
+        try:
+            new_role_msg = self.state.reroll(user)
+        except Exception as e:
+            await user.send(f'ERROR REROLLING: {e}')
+            return
 
         await user.send(new_role_msg)
-        await self.state.game_channel.send(
-            f'{user.name} just used their reroll for the night'
-        )
+        await self.state.game_channel.send(f'{user.name} just used their reroll for the night')
 
-        log_games.log_reroll(old_roll, user.name)
+        spreadsheet.log_reroll(old_roll, user.name)
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
         if user.bot:
             return
 
-        if str(reaction.emoji) != "🎲":
+        if str(reaction.emoji) != '🎲':
             return
 
         await self._handle_reroll(user)

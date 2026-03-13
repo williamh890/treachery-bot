@@ -41,46 +41,45 @@ class TreacheryGameState:
         player_msgs = {}
         for player in self.players:
             role = self.current_roles[player.name]
-            image = treachery.card_image(role)
-            role_info = f'{role["types"]["subtype"]} - {role["name"]}'
-            msg = f'Game {self.game_number}:\n'
-            msg += f'    {role_info}\n\n'
-            msg += f'{image}\n'
 
-            player_msgs[player.name] = msg
+            player_msgs[player.name] = self._role_card_message(role)
 
-        roles = [role['types']['subtype'] for role in self.current_roles.values()]
+        roles = [role.role for role in self.current_roles.values()]
 
         game_msg = f'    Dealt out {len(roles)} roles (dice to reroll)'
 
         return player_msgs, game_msg
 
     def can_player_reroll(self, player):
-        if player.name in self.has_rerolled:
-            return 'Yr out of rerolls for the night.'
-
         if not self.current_roles or player.name not in self.current_roles.keys():
             return "You haven't been dealt out a role."
-
-        player_role = self.current_roles[player.name]
 
         return None
 
     def reroll(self, player):
-        role_type = self.current_roles[player.name]['types']['subtype']
-        dealt_roles = [
-            role for role in self.current_roles.values()
-            if role['types']['subtype'] == role_type
-        ]
+        role_type = self.current_roles[player.name].role
+        dealt_roles = [role for role in self.current_roles.values() if role.role == role_type]
 
         role = self.role_deck.reroll(dealt_roles)
 
         self.has_rerolled.add(player.name)
 
-        image = treachery.card_image(role)
-        player_msg = f'Reroll for Game {self.game_number}\n{image}'
+        player_msg = 'Rerolled!\n\n'
+        player_msg += self._role_card_message(role)
 
         return player_msg
+
+    def _role_card_message(self, role):
+        image = role.image or 'NO IMAGE'
+        role_info = f'{role.role} - {role.name}'
+
+        msg = f'|\n|\nGame {self.game_number}:\n'
+        msg += f'    {role_info}'
+        msg += f'    {role.author}\n\n'
+        msg += f'    {role.text}\n\n'
+        msg += f'{image}\n'
+
+        return msg
 
     def shuffle(self):
         self.role_deck.shuffle()
@@ -115,7 +114,7 @@ class TreacheryGameState:
             if name == filter_player:
                 continue
 
-            msg += f'    {idx}.) {name}: {role["name"]} [{role["types"]["subtype"]}]\n'
+            msg += f'    {idx}.) {name}: {role.name} [{role.role}]\n'
             idx += 1
 
         return msg

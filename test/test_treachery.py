@@ -1,15 +1,12 @@
 import treachery
 
+import cards
+
 
 def test_loading_cards():
     role_deck = treachery.RoleDeck()
     assert role_deck.all_cards
-    assert set(role_deck.cards_by_role.keys()) == {
-        'Guardian',
-        'Traitor',
-        'Assassin',
-        'Leader',
-    }
+    assert set(role_deck.cards_by_role.keys()) == cards.role_types
 
 
 def test_deal_roles():
@@ -32,12 +29,12 @@ def test_get_role_cards():
     role_cards = treachery.RoleDeck().deal('p3', players, spice_pct=-1)
 
     assert role_cards.keys() == players | {'p3'}
-    assert set(card['types']['subtype'] for card in role_cards.values()) == {
+    assert set(card.role for card in role_cards.values()) == {
         'Traitor',
         'Assassin',
         'Leader',
     }
-    assert role_cards['p3']['types']['subtype'] == 'Leader'
+    assert role_cards['p3'].role == 'Leader'
 
 
 def test_multiple_deals():
@@ -47,13 +44,13 @@ def test_multiple_deals():
 
     for _ in range(9):
         role_cards = role_deck.deal('p4', players, spice_pct=-1)
-        dealt = [role['name'] for role in role_cards.values()]
+        dealt = [role.name for role in role_cards.values()]
 
         assert all(role not in seen_roles for role in dealt)
         seen_roles.update(dealt)
 
     role_cards = role_deck.deal('p4', players, spice_pct=-1)
-    dealt = [role['name'] for role in role_cards.values()]
+    dealt = [role.name for role in role_cards.values()]
     assert any(role in seen_roles for role in dealt)
 
 

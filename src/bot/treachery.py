@@ -3,15 +3,18 @@ import random
 import json
 from collections import defaultdict, Counter
 import pathlib
-import urllib
+
+from cards import RoleCard, card_image_url
+import spreadsheet
+
 
 ASSET_PATH = pathlib.Path(__file__).parent / 'assets'
 
 
 class RoleDeck:
     def __init__(self):
-        self.all_cards = _load_treachery_cards()
-        self.cards_by_role = get_cards_by_role(self.all_cards)
+        self.all_cards: list[RoleCard] = self._load_treachery_cards()
+        self.cards_by_role: dict[str, list[RoleCard]] = get_cards_by_role(self.all_cards)
 
     def __str__(self):
         return 'Current Role Deck: \n' + '\n'.join(
@@ -35,23 +38,55 @@ class RoleDeck:
 
     def reroll(self, dealt_roles):
         count = len(dealt_roles)
-        role_type = dealt_roles[0]['types']['subtype']
+        role_type = dealt_roles[0].role
 
         if len(self.cards_by_role[role_type]) < count:
-            dealt_card_names = set(r['name'] for r in dealt_roles)
+            dealt_card_names = set(r.name for r in dealt_roles)
 
             self.cards_by_role[role_type] = [
-                r for r in self._get_all_cards_for(role_type) if r['name'] not in dealt_card_names
+                r for r in self._get_all_cards_for(role_type) if r.name not in dealt_card_names
             ]
 
+        random.shuffle(self.cards_by_role[role_type])
         new_role = self.cards_by_role[role_type].pop()
+
         return new_role
 
     def shuffle(self):
         self.cards_by_role = get_cards_by_role(self.all_cards)
 
     def _get_all_cards_for(self, role):
-        return [card for card in self.all_cards if card['types']['subtype'] == role]
+        return [card for card in self.all_cards if card.role == role]
+
+    def _load_treachery_cards(self) -> list[RoleCard]:
+        cards_path = ASSET_PATH / 'cards.json'
+
+        if not cards_path.exists():
+            _download_cards(cards_path)
+
+        with cards_path.open('r') as f:
+            cards = json.load(f)
+
+        try:
+            loaded_cards = spreadsheet.load_custom_roles()
+            print(f'Loaded cards from spreadsheet: {len(loaded_cards)}')
+        except Exception as e:
+            self.custom_cards_failed = str(e)
+            loaded_cards = [
+                RoleCard(
+                    id=card['id'],
+                    name=card['name'],
+                    role=card['types']['subtype'],
+                    text=card['text'],
+                    author='Default Treachery',
+                    image=card_image_url(card),
+                )
+                for card in cards['cards']
+            ]
+        else:
+            self.custom_cards_failed = None
+
+        return loaded_cards
 
 
 def _deal_non_leader_roles(players, spice_pct=0.02):
@@ -109,7 +144,7 @@ def _role_chaos(roles):
 
 def wearer_of_masks(role_deck, x):
     def is_maskable_card(card):
-        return card['types']['subtype'] != 'Leader' and card['name'] != 'The Wearer of Masks'
+        return card.role != 'Leader' and card.name != 'The Wearer of Masks'
 
     non_leader_cards = [card for card in role_deck.all_cards if is_maskable_card(card)]
 
@@ -117,18 +152,6 @@ def wearer_of_masks(role_deck, x):
         x = len(non_leader_cards)
 
     return random.sample(non_leader_cards, x)
-
-
-def _load_treachery_cards():
-    cards_path = ASSET_PATH / 'cards.json'
-
-    if not cards_path.exists():
-        _download_cards(cards_path)
-
-    with cards_path.open('r') as f:
-        cards = json.load(f)
-
-    return cards['cards']
 
 
 def _download_cards(cards_path):
@@ -140,23 +163,16 @@ def _download_cards(cards_path):
             f.write(chunk)
 
 
-def get_cards_by_role(cards):
+def get_cards_by_role(cards: list[RoleCard]) -> dict[str, RoleCard]:
     by_role = defaultdict(list)
 
     for card in cards:
-        by_role[card['types']['subtype']].append(card)
+        by_role[card.role].append(card)
 
     for role in by_role:
         random.shuffle(by_role[role])
 
     return by_role
-
-
-def card_image(card):
-    url_encoded = urllib.parse.quote(f'{card["id"]:03} - {card["types"]["subtype"]} - {card["name"]}.jpg')
-    url = f'https://mtgtreachery.net/images/cards/en/trd/{url_encoded}'
-
-    return url
 
 
 def download_image(card, url):
