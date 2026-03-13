@@ -72,6 +72,10 @@ class RoleDeck:
             print(f'Loaded cards from spreadsheet: {len(loaded_cards)}')
         except Exception as e:
             self.custom_cards_failed = str(e)
+        else:
+            self.custom_cards_failed = None
+
+        if self.custom_cards_failed or len(loaded_cards) < 3:
             loaded_cards = [
                 RoleCard(
                     id=card['id'],
@@ -83,8 +87,6 @@ class RoleDeck:
                 )
                 for card in cards['cards']
             ]
-        else:
-            self.custom_cards_failed = None
 
         return loaded_cards
 
